@@ -25,6 +25,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score #, accuracy_score
 
+# Need to change max value to a cluster number or something
+def generate_random_number(min_value=0, max_value=4):
+    return random.randint(min_value, max_value)
+
 
 def model_gen(G, params, quiet_bool=True):
     '''
@@ -376,3 +380,182 @@ def test_grid_search(G, X, y, test_sizes=np.arange(0.1, 1, 0.1)):
 
 
     fig.show()
+
+
+# Could extend by adjusting k 
+def connect_subgraph(initial_graph, subgraph):
+    '''
+        Connects a subgraph to a main graph by adding an edge between a
+        node from the main graph and a node from the subgraph
+    '''
+
+    new_graph = initial_graph.copy()
+
+    # Pick random nodes to connect the two graphs
+    node_main = random.sample(list(new_graph.nodes()), k=1)[0]
+    node_sub = random.sample(list(subgraph.nodes()), k=1)[0]
+    
+    # Add an edge between the chosen nodes
+    new_graph.add_edge(node_main, node_sub)
+    
+    # Add the subgraph to the new graph
+    new_graph.add_nodes_from(subgraph.nodes(data=True))
+    new_graph.add_edges_from(subgraph.edges())
+
+    return new_graph
+
+
+# Refactor this function
+def groups_assign(initial_graph, subgraph, group_df=pd.DataFrame()):
+    '''
+        Assign group numbers to nodes for node classification
+    '''
+
+    if group_df.shape == (0, 0):
+        new_graph = connect_subgraph(initial_graph, subgraph)
+        
+        # Create an empty DataFrame with the same length as the list
+        group_df = pd.DataFrame(index=range(new_graph.number_of_nodes()))
+
+        # Assign the original list to the first column
+        group_df['node_num'] = group_df.index
+
+        # Generate random numbers (you can use the function or directly use random.randint)
+        random_numbers = [generate_random_number(min_value=0, max_value=4) for _ in range(len(group_df))]
+
+        # Add a new column with the random numbers
+        group_df['group'] = random_numbers
+
+    else:
+        temp_df = pd.DataFrame(index=range(subgraph.number_of_nodes()))
+
+        temp_df['node_num'] = temp_df.index
+
+        random_numbers = [generate_random_number() for _ in range(len(temp_df))]
+
+        temp_df['group'] = random_numbers
+
+        group_df = pd.concat([group_df, temp_df], ignore_index=True)  # Optional: reset index
+
+    groups_dict = {node_num: group_df.loc[node_num, 'group'] for node_num in list(group_df['node_num'])}
+
+    return groups_dict
+    
+
+def train_test_creator(groups_dict, model):
+    '''
+        Creates train, test sets based on embeddings and groups (?)
+    '''
+
+    # Create a dictionary to map node IDs to vectors
+    node_vectors = {}
+    for node_id in model.wv.index_to_key:
+        node_vectors[int(node_id)] = model.wv.get_vector(node_id)
+
+    X = list(node_vectors.values())
+    y = [groups_dict[key] for key in node_vectors if key in groups_dict] # the mapping keeps the same order
+
+    return X, y, node_vectors # remove in future
+
+
+# Could extend by adjusting k 
+def connect_subgraph(main_graph, subgraph):
+    '''
+        Connects a subgraph to a main graph by adding an edge between a
+        node from the main graph and a node from the subgraph
+    '''
+
+    # Pick random nodes to connect the two graphs
+    node_main = random.sample(list(main_graph.nodes()), k=1)[0]
+    node_sub = random.sample(list(subgraph.nodes()), k=1)[0]
+    
+    # Add an edge between the chosen nodes
+    main_graph.add_edge(node_main, node_sub)
+    
+    # Add the subgraph to the main graph
+    main_graph.add_nodes_from(subgraph.nodes(data=True))
+    main_graph.add_edges_from(subgraph.edges())
+
+    return main_graph
+
+
+def ext_subgraph_modify(initial_graph, ext_subgraph):
+    '''
+        Modifies extending subgraph based on initial graph node labels
+    '''
+
+    # Finds starting number to relabel the nodes of the extending graph
+    max_main_num = max(initial_graph.nodes()) + 1
+
+    # Create a mapping dictionary to relabel nodes
+    mapping = {old_label: old_label + max_main_num for old_label in ext_subgraph.nodes()}
+
+    # Relabel nodes in the graph
+    ext_subgraph = nx.relabel_nodes(ext_subgraph, mapping)
+
+    return ext_subgraph
+
+
+def get_neighborhood(initial_graph, node, hop_limit):
+    '''
+    This function finds the neighborhood of a node in a NetworkX graph within a specified hop limit.
+    '''
+    
+    neighbors = set(initial_graph.neighbors(node))
+    all_neighbors = set(initial_graph.neighbors(node))
+
+    for hop_count in range(hop_limit - 1):
+        temp = set()
+    
+        for node in neighbors:
+            temp.update(set(initial_graph.neighbors(node)))
+    
+        neighbors = temp - all_neighbors
+
+        all_neighbors.update(neighbors)
+    
+    all_neighbors.discard(node)
+
+    neighborhood = initial_graph.subgraph(all_neighbors) 
+    
+    return neighborhood
+
+# def nodes_remove_func(G, percentage):
+#     '''
+#         Removes a percentage of nodes from a graph G
+#     '''
+
+#     all_nodes = list(G.nodes())
+
+#     # Calculate the number of elements to select based on the percentage
+#     k = int(len(all_nodes) * percentage)
+
+#     # Use random.sample to get a random selection of indices from the list
+#     indices = random.sample(range(len(all_nodes)), k)
+
+#     # Return removed subset
+#     return [all_nodes[i] for i in indices] # for i in range(len(all_nodes)) if i not in indices] 
+
+
+# def find_chains(graph):
+#     '''
+#         Find chains of "path" nodes
+#     '''
+#     chains = []
+    
+#     # Iterate over nodes in the graph
+#     for node in graph.nodes:
+#         # Check if the node is pendant (degree == 1)
+#         if graph.degree(node) == 1:
+#             chain = [node]
+#             next_node = list(graph.neighbors(node))[0]  # Get the neighbor of the pendant node
+            
+#             # Follow the chain of pendant nodes until a non-pendant node is reached
+#             while graph.degree(next_node) == 2:
+#                 chain.append(next_node)
+#                 next_node = list(graph.neighbors(next_node))[0]  # Get the neighbor of the current node
+            
+#             # Add the chain to the list of chains
+#             chains.append(chain)
+    
+#     return chains
