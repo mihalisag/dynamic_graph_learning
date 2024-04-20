@@ -1,10 +1,10 @@
 import os
 import random
 
+import plotly
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
-import scipy
 import numpy as np
 import pandas as pd
 
@@ -25,25 +25,37 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score #, accuracy_score
 
+from utils import *
+
 # Need to change max value to a cluster number or something
 def generate_random_number(min_value=0, max_value=4):
     return random.randint(min_value, max_value)
 
 
-def model_gen(G, params, quiet_bool=True):
+def plot_graph(graph):
+    '''
+        Helper function to draw graph
+    '''
+
+    plt.figure(figsize=(3, 3))
+    nx.draw(graph, with_labels=True)
+    plt.show()
+
+
+def model_gen(graph, params, quiet_bool=True):
     '''
         Generates and saves model, returns node2vec and model fit
     '''
 
     [d, r, l, p, q] = params
 
-    node2vec = Node2Vec(G, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=8, temp_folder='temp_folder', quiet=quiet_bool)  # Use temp_folder for big graphs
+    node2vec = Node2Vec(graph, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=8, temp_folder='temp_folder', quiet=quiet_bool)  # Use temp_folder for big graphs
 
     # Embed nodes
     model = node2vec.fit(window=10, min_count=1, batch_words=4) #, ns_exponent=1)
     
     # Save model
-    model_filename = f"{G.name}_d{d}_r{r}_l{l}_p{p}_q{q}.mdl"
+    model_filename = f"{graph.name}_d{d}_r{r}_l{l}_p{p}_q{q}.mdl"
     model.save(f"./models/{model_filename}")
 
     return node2vec, model
@@ -91,13 +103,13 @@ def freq_gen(walks_filename=None, walks=None):
     return node_freq_dict, visit_counts, cumulative_freq_prob
 
 
-def degrees_distribution_gen(G):
+def degrees_distribution_gen(graph):
     '''
         Generates degrees distribution used for plot
     '''
 
     # Calculate degree distribution
-    degrees = sorted([G.degree(i) for i in G], reverse=True)
+    degrees = sorted([graph.degree(i) for i in graph], reverse=True)
     degree_counts = np.bincount(degrees)
 
     # Calculate probability that the degree of a node is at least x
@@ -133,11 +145,14 @@ def freq_plot(visit_counts, cumulative_freq_prob):
         height=480
     )
 
-
+    fig.write_image('figures/freq_plot.svg')
+    fig.write_image('figures/freq_plot.pdf')
     fig.show()
 
+    return fig
 
-def degreee_plot(cumulative_deg_prob):
+
+def degree_plot(cumulative_deg_prob):
     '''
         Makes a plot of the degree distribution
     '''
@@ -167,10 +182,14 @@ def degreee_plot(cumulative_deg_prob):
         height=480
     )
 
+    fig.write_image('figures/degree_plot.svg')
+    fig.write_image('figures/degree_plot.pdf')
     fig.show()
 
+    return fig
 
-def degree_freq_plot(G, degrees, node_freq_dict):
+
+def degree_freq_plot(graph, degrees, node_freq_dict):
     '''
         Makes a scatter plot of the degrees and the node frequencies
     '''
@@ -186,7 +205,7 @@ def degree_freq_plot(G, degrees, node_freq_dict):
     ))
 
     fig.update_layout(
-        title=f"Degree vs Frequency Plot for {G.name} |V|={G.number_of_nodes()}, |E|={G.number_of_edges()}",
+        title=f"Degree vs Frequency Plot for {graph.name} |V|={graph.number_of_nodes()}, |E|={graph.number_of_edges()}",
         xaxis_title="Degree",
         yaxis_title="Frequency (Node Visit Count)",
         showlegend=False,  # Remove legend for this plot
@@ -194,7 +213,11 @@ def degree_freq_plot(G, degrees, node_freq_dict):
         height=480
     )
 
+    fig.write_image('figures/degree_freq_plot.svg')
+    fig.write_image('figures/degree_freq_plot.pdf')
     fig.show()
+
+    return fig
 
 
 def ovr_classifier(X, y, test_size):
@@ -247,7 +270,7 @@ def ovr_classifier(X, y, test_size):
     return f1_scores
 
 
-def params_grid_search(G, params_list):
+def params_grid_search(graph, params_list):
     '''
         Performs grid search and outputs plots
     '''
@@ -261,11 +284,11 @@ def params_grid_search(G, params_list):
         [d, r, l, p, q] = params
 
         # Precompute probabilities and generate walks - **ON WINDOWS ONLY WORKS WITH workers=1**
-        node2vec = Node2Vec(G, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=8, quiet=True)  # Use temp_folder for big graphs
+        node2vec = Node2Vec(graph, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=8, quiet=True)  # Use temp_folder for big graphs
         walks = node2vec.walks
         
         # Degrees and walks' frequencies
-        degrees, cumulative_deg_prob = degrees_distribution_gen(G)
+        degrees, cumulative_deg_prob = degrees_distribution_gen(graph)
         node_freq_dict, visit_counts, cumulative_freq_prob = freq_gen(walks=walks)
 
         fig1.add_trace(go.Scatter(
@@ -288,7 +311,7 @@ def params_grid_search(G, params_list):
 
 
     fig1.update_layout(
-        title=f"Log-log plot of visit frequency distribution for {G.name} |V|={G.number_of_nodes()}, |E|={G.number_of_edges()}",
+        title=f"Log-log plot of visit frequency distribution for {graph.name} |V|={graph.number_of_nodes()}, |E|={graph.number_of_edges()}",
         xaxis_title=r"Vertex visitation count x",
         yaxis_title=r"Probability of vertex appearing at least x times",
         xaxis_type='log',  # Add log scale for x-axis
@@ -299,7 +322,7 @@ def params_grid_search(G, params_list):
 
 
     fig2.update_layout(
-        title=f"Degree vs Frequency Plot for {G.name} |V|={G.number_of_nodes()}, |E|={G.number_of_edges()}",
+        title=f"Degree vs Frequency Plot for {graph.name} |V|={graph.number_of_nodes()}, |E|={graph.number_of_edges()}",
         xaxis_title="Degree",
         yaxis_title="Frequency (Node Visit Count)",
         width=640, 
@@ -328,8 +351,7 @@ def node2vec_configs():
     return parameter_combinations
 
 
-
-def test_grid_search(G, X, y, test_sizes=np.arange(0.1, 1, 0.1)):
+def test_grid_search(graph, X, y, test_sizes=np.arange(0.1, 1, 0.1)):
     '''
         Performs grid search in test size and outputs plots
     '''
@@ -371,7 +393,7 @@ def test_grid_search(G, X, y, test_sizes=np.arange(0.1, 1, 0.1)):
 
 
     fig.update_layout(
-        title=f"F1 Score for {G.name} (p, q) = (), |V|={G.number_of_nodes()}, |E|={G.number_of_edges()}",
+        title=f"F1 Score for {graph.name} (p, q) = (), |V|={graph.number_of_nodes()}, |E|={graph.number_of_edges()}",
         xaxis_title=r"Training size",
         yaxis_title=r"F1 Score",
         width=640,
@@ -392,8 +414,8 @@ def connect_subgraph(initial_graph, subgraph):
     new_graph = initial_graph.copy()
 
     # Pick random nodes to connect the two graphs
-    node_main = random.sample(list(new_graph.nodes()), k=1)[0]
-    node_sub = random.sample(list(subgraph.nodes()), k=1)[0]
+    node_main = random.choice(list(new_graph.nodes()))
+    node_sub = random.choice(list(subgraph.nodes()))
     
     # Add an edge between the chosen nodes
     new_graph.add_edge(node_main, node_sub)
@@ -402,7 +424,33 @@ def connect_subgraph(initial_graph, subgraph):
     new_graph.add_nodes_from(subgraph.nodes(data=True))
     new_graph.add_edges_from(subgraph.edges())
 
-    return new_graph
+    return [node_main, node_sub], new_graph
+
+
+def get_neighborhood(initial_graph, initial_node, max_step):
+    '''
+    This function finds the neighborhood of a node in a
+    graph within a specified hop limit.
+    '''
+    
+    neighbors = set(initial_graph.neighbors(initial_node))
+    all_neighbors = set(initial_graph.neighbors(initial_node))
+
+    for step in range(max_step - 1):
+        temp = set()
+    
+        for node in neighbors:
+            temp.update(set(initial_graph.neighbors(node)))
+    
+        neighbors = temp - all_neighbors
+
+        all_neighbors.update(neighbors)
+    
+    all_neighbors.discard(initial_node)
+
+    neighborhood = initial_graph.subgraph(all_neighbors) 
+    
+    return neighborhood
 
 
 # Refactor this function
@@ -412,7 +460,7 @@ def groups_assign(initial_graph, subgraph, group_df=pd.DataFrame()):
     '''
 
     if group_df.shape == (0, 0):
-        new_graph = connect_subgraph(initial_graph, subgraph)
+        _, new_graph = connect_subgraph(initial_graph, subgraph)
         
         # Create an empty DataFrame with the same length as the list
         group_df = pd.DataFrame(index=range(new_graph.number_of_nodes()))
@@ -458,27 +506,6 @@ def train_test_creator(groups_dict, model):
     return X, y, node_vectors # remove in future
 
 
-# Could extend by adjusting k 
-def connect_subgraph(main_graph, subgraph):
-    '''
-        Connects a subgraph to a main graph by adding an edge between a
-        node from the main graph and a node from the subgraph
-    '''
-
-    # Pick random nodes to connect the two graphs
-    node_main = random.sample(list(main_graph.nodes()), k=1)[0]
-    node_sub = random.sample(list(subgraph.nodes()), k=1)[0]
-    
-    # Add an edge between the chosen nodes
-    main_graph.add_edge(node_main, node_sub)
-    
-    # Add the subgraph to the main graph
-    main_graph.add_nodes_from(subgraph.nodes(data=True))
-    main_graph.add_edges_from(subgraph.edges())
-
-    return main_graph
-
-
 def ext_subgraph_modify(initial_graph, ext_subgraph):
     '''
         Modifies extending subgraph based on initial graph node labels
@@ -496,36 +523,68 @@ def ext_subgraph_modify(initial_graph, ext_subgraph):
     return ext_subgraph
 
 
-def get_neighborhood(initial_graph, node, hop_limit):
+# Extend to multiple main graph nodes
+def enhanced_ext_subgraph_func(initial_graph, ext_subgraph, node_main, max_step=2):
     '''
-    This function finds the neighborhood of a node in a NetworkX graph within a specified hop limit.
+        Enhances extending subgraph by including the connecting nodes
+        in the main graph and some of its neighbors
     '''
-    
-    neighbors = set(initial_graph.neighbors(node))
-    all_neighbors = set(initial_graph.neighbors(node))
 
-    for hop_count in range(hop_limit - 1):
-        temp = set()
-    
-        for node in neighbors:
-            temp.update(set(initial_graph.neighbors(node)))
-    
-        neighbors = temp - all_neighbors
+    main_neighbors = get_neighborhood(initial_graph, node_main, max_step)
 
-        all_neighbors.update(neighbors)
-    
-    all_neighbors.discard(node)
+    initial_subgraph = initial_graph.subgraph(main_neighbors)
 
-    neighborhood = initial_graph.subgraph(all_neighbors) 
-    
-    return neighborhood
+    _, enh_ext_subgraph = connect_subgraph(initial_subgraph, ext_subgraph)
 
-# def nodes_remove_func(G, percentage):
+    return enh_ext_subgraph
+
+
+def remove_nodes_connected(initial_graph, num_nodes):
+    '''
+        Remove specific number of nodes while ensuring the graph remains connected.
+        Returns removed nodes and pruned graph.
+    '''
+
+    graph = initial_graph.copy()
+
+    removed_nodes = []
+
+    while num_nodes > 0:
+        node = random.choice(list(graph.nodes()))
+
+        temp_graph = graph.copy()
+        temp_graph.remove_node(node)
+
+        if nx.is_connected(temp_graph):
+            graph.remove_node(node)
+            removed_nodes.append(node)
+            num_nodes -= 1
+        
+    return graph, removed_nodes
+
+
+def pruned_subgraph_func(initial_graph, removed_nodes, max_step=2):
+    '''
+        Returns pruned subgraph of initial graph depending on 
+        the neighbors of the removed nodes
+    '''
+
+    neighbors = []
+
+    for node in removed_nodes:
+        neighbors += list(get_neighborhood(initial_graph, node, max_step))
+
+    pruned_subgraph = initial_graph.subgraph(neighbors)
+
+    return pruned_subgraph
+
+
+# def nodes_remove_func(graph, percentage):
 #     '''
-#         Removes a percentage of nodes from a graph G
+#         Removes a percentage of nodes from a graph
 #     '''
 
-#     all_nodes = list(G.nodes())
+#     all_nodes = list(graph.nodes())
 
 #     # Calculate the number of elements to select based on the percentage
 #     k = int(len(all_nodes) * percentage)
