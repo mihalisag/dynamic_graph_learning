@@ -25,20 +25,34 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score #, accuracy_score
 
-from utils import *
-
 # Need to change max value to a cluster number or something
 def generate_random_number(min_value=0, max_value=4):
     return random.randint(min_value, max_value)
+
+
+# def plot_graph(graph):
+#     '''
+#         Helper function to draw graph
+#     '''
+    
+#     # Compute Kamada-Kawai layout
+#     pos = nx.kamada_kawai_layout(graph)
+
+#     plt.figure(figsize=(5, 5))
+#     nx.draw(graph, pos, node_size=100, with_labels=True)
+#     plt.show()
 
 
 def plot_graph(graph):
     '''
         Helper function to draw graph
     '''
+    
+    # Compute Kamada-Kawai layout
+    pos = nx.kamada_kawai_layout(graph)
 
-    plt.figure(figsize=(3, 3))
-    nx.draw(graph, with_labels=True)
+    plt.figure(figsize=(4, 4))
+    nx.draw_networkx(graph, pos, node_size=75, font_size=6, node_color='lightblue', edge_color='grey')
     plt.show()
 
 
@@ -51,12 +65,12 @@ def model_gen(graph, params, quiet_bool=True):
 
     node2vec = Node2Vec(graph, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=8, temp_folder='temp_folder', quiet=quiet_bool)  # Use temp_folder for big graphs
 
-    # Embed nodes
+    # Embed nodes (check arguments, maybe unneccessary?)
     model = node2vec.fit(window=10, min_count=1, batch_words=4) #, ns_exponent=1)
     
-    # Save model
-    model_filename = f"{graph.name}_d{d}_r{r}_l{l}_p{p}_q{q}.mdl"
-    model.save(f"./models/{model_filename}")
+    # # Save model
+    # model_filename = f"{graph.name}_d{d}_r{r}_l{l}_p{p}_q{q}.mdl"
+    # model.save(f"./models/{model_filename}")
 
     return node2vec, model
 
@@ -220,6 +234,22 @@ def degree_freq_plot(graph, degrees, node_freq_dict):
     return fig
 
 
+def emb_group_gen(groups_dict, model):
+    '''
+        Generates embeddings with their corresponding groups
+    '''
+
+    # Create a dictionary to map node IDs to vectors
+    node_vectors_dict = {}
+    for node_id in model.wv.index_to_key:
+        node_vectors_dict[int(node_id)] = model.wv.get_vector(node_id)
+
+    X = list(node_vectors_dict.values())
+    y = [groups_dict[key] for key in node_vectors_dict if key in groups_dict] # the mapping keeps the same order
+
+    return X, y, node_vectors_dict # remove in future
+
+
 def ovr_classifier(X, y, test_size):
     '''
         Outputs an OvR classifier
@@ -256,12 +286,12 @@ def ovr_classifier(X, y, test_size):
     # # Calculate accuracy
     # accuracy = accuracy_score(y_test, y_pred)
     # print("Accuracy:", accuracy)
-
-    # F1 Macro Score
-    f1_macro = f1_score(y_test, y_pred, average='macro')
-
+    
     # F1 Micro Score
     f1_micro = f1_score(y_test, y_pred, average='micro')
+    
+    # F1 Macro Score
+    f1_macro = f1_score(y_test, y_pred, average='macro')
 
     training_size = 1-test_size
 
@@ -490,29 +520,13 @@ def groups_assign(initial_graph, subgraph, group_df=pd.DataFrame()):
     return groups_dict
     
 
-def train_test_creator(groups_dict, model):
-    '''
-        Creates train, test sets based on embeddings and groups (?)
-    '''
-
-    # Create a dictionary to map node IDs to vectors
-    node_vectors = {}
-    for node_id in model.wv.index_to_key:
-        node_vectors[int(node_id)] = model.wv.get_vector(node_id)
-
-    X = list(node_vectors.values())
-    y = [groups_dict[key] for key in node_vectors if key in groups_dict] # the mapping keeps the same order
-
-    return X, y, node_vectors # remove in future
-
-
-def ext_subgraph_modify(initial_graph, ext_subgraph):
+def relabel_subgraph(initial_graph, ext_subgraph):
     '''
         Modifies extending subgraph based on initial graph node labels
     '''
 
     # Finds starting number to relabel the nodes of the extending graph
-    max_main_num = max(initial_graph.nodes()) + 1
+    max_main_num = max(map(int, initial_graph.nodes())) + 1
 
     # Create a mapping dictionary to relabel nodes
     mapping = {old_label: old_label + max_main_num for old_label in ext_subgraph.nodes()}
@@ -524,6 +538,7 @@ def ext_subgraph_modify(initial_graph, ext_subgraph):
 
 
 # Extend to multiple main graph nodes
+# Also check if disconnected?
 def enhanced_ext_subgraph_func(initial_graph, ext_subgraph, node_main, max_step=2):
     '''
         Enhances extending subgraph by including the connecting nodes
@@ -533,10 +548,84 @@ def enhanced_ext_subgraph_func(initial_graph, ext_subgraph, node_main, max_step=
     main_neighbors = get_neighborhood(initial_graph, node_main, max_step)
 
     initial_subgraph = initial_graph.subgraph(main_neighbors)
-
+    
     _, enh_ext_subgraph = connect_subgraph(initial_subgraph, ext_subgraph)
 
     return enh_ext_subgraph
+
+
+def generate_extended_embeddings(initial_graph, ext_subgraph, params, groups_dict):
+    '''
+        Generates the extending subgraph embeddings and groups
+        by taking into account only the extended node embeddings
+    '''
+
+    # Connect the subgraph to the main graph
+    [main_node, _], _ = connect_subgraph(initial_graph, ext_subgraph)
+
+    # Generate enhanced extended subgraph
+    enh_ext_subgraph = enhanced_ext_subgraph_func(initial_graph, ext_subgraph, main_node, max_step=2)
+
+    # Generate model and embeddings for the enhanced extended subgraph
+    _, model_ext = model_gen(enh_ext_subgraph, params)
+    _, _, node_vectors_dict_ext = emb_group_gen(groups_dict, model_ext)
+
+    # ## Previous method, slow
+    # # Generate model and embeddings for the initial graph
+    # _, model_initial = model_gen(initial_graph, params)
+    # _, _, node_vectors_dict_initial = emb_group_gen(groups_dict, model_initial)
+
+    # # Find nodes that are in the extended subgraph but not in the initial graph embeddings
+    # kept_nodes = set(enh_ext_subgraph.nodes()) - set(node_vectors_dict_initial.keys()).intersection(enh_ext_subgraph.nodes())
+    # print(kept_nodes)
+
+    kept_nodes = list(ext_subgraph.nodes())
+
+    # Gather X_ext and y_ext for the kept nodes
+    X_ext = [node_vectors_dict_ext[node] for node in kept_nodes]
+    y_ext = [groups_dict[node] for node in kept_nodes]
+
+    return X_ext, y_ext
+
+
+def compare_models(initial_graph, ext_subgraph, params=[64, 10, 80, 0.25, 4], test_sizes=np.arange(0.1, 1, 0.1)):
+    '''
+        Compares manual and modified graph models' embeddings
+    '''
+
+    groups_dict = groups_assign(initial_graph, ext_subgraph)
+
+    # Generate modified graph
+    [node_main, node_sub], mod_graph = connect_subgraph(initial_graph, ext_subgraph)
+
+    # Generate model for the initial graph
+    _, model_initial = model_gen(initial_graph, params)
+
+    # Generate model for the modified graph
+    _, model_mod = model_gen(mod_graph, params)
+
+    # Generate embeddings for the initial graph
+    X_initial, y_initial, _ = emb_group_gen(groups_dict, model_initial)
+
+    # Generate embeddings for the modified graph
+    X_mod, y_mod, _ = emb_group_gen(groups_dict, model_mod)
+
+    # Generate embeddings for the extending subgraph, without common embeddings with initial graph
+    X_ext, y_ext = generate_extended_embeddings(initial_graph, ext_subgraph, params, groups_dict)
+
+    # Combine initial and extended embeddings for manual model
+    X_manual = X_initial + X_ext
+    y_manual = y_initial + y_ext
+
+    print("New graph (from scratch)")
+    for test_size in test_sizes:
+        print(f"For training size: {(1 - test_size):.1f}: {list(ovr_classifier(X_mod, y_mod, test_size).values())}")
+
+    print(2 * '\n')
+
+    print("Manually updated graph (extending the graph)")
+    for test_size in test_sizes:
+        print(f"For training size: {(1 - test_size):.1f}: {list(ovr_classifier(X_manual, y_manual, test_size).values())}")
 
 
 def remove_nodes_connected(initial_graph, num_nodes):
