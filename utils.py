@@ -27,6 +27,7 @@ from sklearn.metrics import f1_score #, accuracy_score
 
 # Need to change max value to a cluster number or something
 def generate_random_number(min_value=0, max_value=4):
+
     return random.randint(min_value, max_value)
 
 
@@ -38,23 +39,44 @@ def generate_random_number(min_value=0, max_value=4):
 #     # Compute Kamada-Kawai layout
 #     pos = nx.kamada_kawai_layout(graph)
 
-#     plt.figure(figsize=(5, 5))
-#     nx.draw(graph, pos, node_size=100, with_labels=True)
+#     plt.figure(figsize=(4, 4))
+#     nx.draw_networkx(graph, pos, node_size=75, font_size=6, node_color='lightblue', edge_color='grey')
 #     plt.show()
 
 
-def plot_graph(graph):
+
+def plot_graph(graph, removed_nodes=None, neighbors=None):
     '''
         Helper function to draw graph
     '''
+
+    node_num = graph.number_of_nodes()
+
+    colored_nodes = node_num * ['lightblue']
     
-    # Compute Kamada-Kawai layout
-    pos = nx.kamada_kawai_layout(graph)
+    if removed_nodes:
+        for node in removed_nodes:
+            node_index = node
+            colored_nodes[node_index] = 'red'
+
+    if neighbors:
+        for node in neighbors:
+            node_index = node
+            colored_nodes[node_index] = 'orange'
+        
+    
+    is_disconnected = nx.number_connected_components(graph) > 1
+
+    if is_disconnected:
+        pos = nx.spring_layout(graph)
+    else:
+        pos = nx.kamada_kawai_layout(graph)
 
     plt.figure(figsize=(4, 4))
-    nx.draw_networkx(graph, pos, node_size=75, font_size=6, node_color='lightblue', edge_color='grey')
+    nx.draw_networkx(graph, pos, node_size=75, font_size=6, edge_color='grey', node_color=colored_nodes)
     plt.show()
 
+    
 
 def model_gen(graph, params, quiet_bool=True):
     '''
@@ -232,6 +254,43 @@ def degree_freq_plot(graph, degrees, node_freq_dict):
     fig.show()
 
     return fig
+
+
+# Refactor this function
+def groups_assign(initial_graph, subgraph, group_df=pd.DataFrame()):
+    '''
+        Assign group numbers to nodes for node classification
+    '''
+
+    if group_df.shape == (0, 0):
+        _, new_graph = connect_subgraph(initial_graph, subgraph)
+        
+        # Create an empty DataFrame with the same length as the list
+        group_df = pd.DataFrame(index=range(new_graph.number_of_nodes()))
+
+        # Assign the original list to the first column
+        group_df['node_num'] = group_df.index
+
+        # Generate random numbers (you can use the function or directly use random.randint)
+        random_numbers = [generate_random_number(min_value=0, max_value=4) for _ in range(len(group_df))]
+
+        # Add a new column with the random numbers
+        group_df['group'] = random_numbers
+
+    else:
+        temp_df = pd.DataFrame(index=range(subgraph.number_of_nodes()))
+
+        temp_df['node_num'] = temp_df.index
+
+        random_numbers = [generate_random_number() for _ in range(len(temp_df))]
+
+        temp_df['group'] = random_numbers
+
+        group_df = pd.concat([group_df, temp_df], ignore_index=True)  # Optional: reset index
+
+    groups_dict = {node_num: group_df.loc[node_num, 'group'] for node_num in list(group_df['node_num'])}
+
+    return groups_dict
 
 
 def emb_group_gen(groups_dict, model):
@@ -482,42 +541,6 @@ def get_neighborhood(initial_graph, initial_node, max_step):
     
     return neighborhood
 
-
-# Refactor this function
-def groups_assign(initial_graph, subgraph, group_df=pd.DataFrame()):
-    '''
-        Assign group numbers to nodes for node classification
-    '''
-
-    if group_df.shape == (0, 0):
-        _, new_graph = connect_subgraph(initial_graph, subgraph)
-        
-        # Create an empty DataFrame with the same length as the list
-        group_df = pd.DataFrame(index=range(new_graph.number_of_nodes()))
-
-        # Assign the original list to the first column
-        group_df['node_num'] = group_df.index
-
-        # Generate random numbers (you can use the function or directly use random.randint)
-        random_numbers = [generate_random_number(min_value=0, max_value=4) for _ in range(len(group_df))]
-
-        # Add a new column with the random numbers
-        group_df['group'] = random_numbers
-
-    else:
-        temp_df = pd.DataFrame(index=range(subgraph.number_of_nodes()))
-
-        temp_df['node_num'] = temp_df.index
-
-        random_numbers = [generate_random_number() for _ in range(len(temp_df))]
-
-        temp_df['group'] = random_numbers
-
-        group_df = pd.concat([group_df, temp_df], ignore_index=True)  # Optional: reset index
-
-    groups_dict = {node_num: group_df.loc[node_num, 'group'] for node_num in list(group_df['node_num'])}
-
-    return groups_dict
     
 
 def relabel_subgraph(initial_graph, ext_subgraph):
@@ -652,20 +675,72 @@ def remove_nodes_connected(initial_graph, num_nodes):
     return graph, removed_nodes
 
 
-def pruned_subgraph_func(initial_graph, removed_nodes, max_step=2):
+def removed_nodes_neighbors_func(initial_graph, removed_nodes, max_step=2):
     '''
-        Returns pruned subgraph of initial graph depending on 
-        the neighbors of the removed nodes
+        Returns neighbors of removed nodes
     '''
 
     neighbors = []
 
     for node in removed_nodes:
-        neighbors += list(get_neighborhood(initial_graph, node, max_step))
+        neighbors += list(get_neighborhood(initial_graph, node, max_step)) 
 
-    pruned_subgraph = initial_graph.subgraph(neighbors)
+    return neighbors
 
-    return pruned_subgraph
+
+def neighbors_subgraph_func(initial_graph, removed_nodes, neighbors):
+    '''
+        Returns neighbors subgraph taking into account the 
+        removal of the removed nodes
+    '''
+
+    temp_neighbors_subgraph = initial_graph.subgraph(neighbors)
+
+    neighbors_subgraph = temp_neighbors_subgraph.copy()
+    neighbors_subgraph.remove_nodes_from(removed_nodes)
+
+    return neighbors_subgraph
+
+
+def pruned_graph_func(initial_graph, neighbors):
+    '''
+        Returns pruned subgraph of initial graph depending on 
+        the neighbors of the removed nodes
+    '''
+
+    pruned_graph = initial_graph.subgraph(neighbors)
+
+    return pruned_graph
+
+
+def pruned_modified_embeddings(initial_graph, params, num_nodes=12):
+    '''
+        Returns embeddings of pruned and modified subgraphs
+    '''
+
+    pruned_graph, removed_nodes = remove_nodes_connected(initial_graph, num_nodes)
+    neighbors = removed_nodes_neighbors_func(initial_graph, removed_nodes)
+
+    neighbors_subgraph = neighbors_subgraph_func(initial_graph, removed_nodes, neighbors)
+
+    _, model_initial = model_gen(initial_graph, params)
+    _, model_neighbors = model_gen(neighbors_subgraph, params)
+    _, model_pruned = model_gen(pruned_graph, params)
+
+    groups_dict = groups_assign(initial_graph, initial_graph) # the second subgraph does not matter in this case (?)
+
+    _, _, node_vectors_dict_initial = emb_group_gen(groups_dict, model_initial)
+    X_neighbors, y_neighbors, node_vectors_dict_neighbors = emb_group_gen(groups_dict, model_neighbors)
+    X_pruned, y_pruned, node_vectors_dict_pruned = emb_group_gen(groups_dict, model_pruned)
+
+    node_vectors_dict_mod = node_vectors_dict_initial.copy()
+    node_vectors_dict_mod.update(node_vectors_dict_neighbors)
+
+    X_mod = list(node_vectors_dict_mod.values())
+    y_mod = [groups_dict[key] for key in node_vectors_dict_mod if key in groups_dict]
+
+    return X_pruned, y_pruned, X_mod, y_mod
+
 
 
 # def nodes_remove_func(graph, percentage):
