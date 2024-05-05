@@ -31,6 +31,9 @@ def generate_random_number(min_value=0, max_value=4):
     return random.randint(min_value, max_value)
 
 
+quick_info = lambda graph: (graph.number_of_nodes(), graph.number_of_edges())
+
+
 # def plot_graph(graph):
 #     '''
 #         Helper function to draw graph
@@ -44,27 +47,23 @@ def generate_random_number(min_value=0, max_value=4):
 #     plt.show()
 
 
+def plot_graph(graph, node_type_list=[]):
+    '''
+        Helper function to draw graph with specific colors
+    '''
 
-def plot_graph(graph, removed_nodes=None, neighbors=None):
-    '''
-        Helper function to draw graph
-    '''
+    # The order is: removed nodes, neighbors and added vertices
+    colors_list = ['red', 'orange', 'green']
 
     node_num = graph.number_of_nodes()
+    node_colors = node_num * ['lightblue']
 
-    colored_nodes = node_num * ['lightblue']
-    
-    if removed_nodes:
-        for node in removed_nodes:
-            node_index = node
-            colored_nodes[node_index] = 'red'
+    for node_list in node_type_list:
+        color = colors_list[node_type_list.index(node_list)]
 
-    if neighbors:
-        for node in neighbors:
-            node_index = node
-            colored_nodes[node_index] = 'orange'
+        for node in node_list:
+            node_colors[node] = color
         
-    
     is_disconnected = nx.number_connected_components(graph) > 1
 
     if is_disconnected:
@@ -73,15 +72,20 @@ def plot_graph(graph, removed_nodes=None, neighbors=None):
         pos = nx.kamada_kawai_layout(graph)
 
     plt.figure(figsize=(4, 4))
-    nx.draw_networkx(graph, pos, node_size=75, font_size=6, edge_color='grey', node_color=colored_nodes)
+    nx.draw_networkx(graph, pos, node_size=75, font_size=6, edge_color='grey', node_color=node_colors)
     plt.show()
-
     
 
-def model_gen(graph, params, quiet_bool=True):
+def model_gen(graph, params, existing_filename=None, quiet_bool=True):
     '''
         Generates and saves model, returns node2vec and model fit
     '''
+
+    if existing_filename:
+        model = Word2Vec.load(existing_filename)
+        print("Model loaded.")
+
+        return '', model
 
     [d, r, l, p, q] = params
 
@@ -93,6 +97,10 @@ def model_gen(graph, params, quiet_bool=True):
     # # Save model
     # model_filename = f"{graph.name}_d{d}_r{r}_l{l}_p{p}_q{q}.mdl"
     # model.save(f"./models/{model_filename}")
+
+    N, E = [graph.number_of_nodes(), graph.number_of_edges()]
+
+    print(f"Model generated - (|V| = {N} , |E| = {E})")
 
     return node2vec, model
 
@@ -278,7 +286,7 @@ def groups_assign(initial_graph, subgraph, group_df=pd.DataFrame()):
         group_df['group'] = random_numbers
 
     else:
-        temp_df = pd.DataFrame(index=range(subgraph.number_of_nodes()))
+        temp_df = pd.DataFrame(index=sorted(subgraph.nodes()))
 
         temp_df['node_num'] = temp_df.index
 
@@ -288,7 +296,7 @@ def groups_assign(initial_graph, subgraph, group_df=pd.DataFrame()):
 
         group_df = pd.concat([group_df, temp_df], ignore_index=True)  # Optional: reset index
 
-    groups_dict = {node_num: group_df.loc[node_num, 'group'] for node_num in list(group_df['node_num'])}
+    groups_dict = {node_num: group_df.loc[group_df['node_num'] == node_num, 'group'].values[0] for node_num in list(group_df['node_num'])}
 
     return groups_dict
 
@@ -611,18 +619,18 @@ def generate_extended_embeddings(initial_graph, ext_subgraph, params, groups_dic
     return X_ext, y_ext
 
 
-def compare_models(initial_graph, ext_subgraph, params=[64, 10, 80, 0.25, 4], test_sizes=np.arange(0.1, 1, 0.1)):
+def compare_models(initial_graph, ext_subgraph, existing_filename=None, params=[64, 10, 80, 0.25, 4], test_sizes=np.arange(0.1, 1, 0.1), group_df=pd.DataFrame()):
     '''
         Compares manual and modified graph models' embeddings
     '''
 
-    groups_dict = groups_assign(initial_graph, ext_subgraph)
+    groups_dict = groups_assign(initial_graph, ext_subgraph, group_df)
 
     # Generate modified graph
     [node_main, node_sub], mod_graph = connect_subgraph(initial_graph, ext_subgraph)
 
     # Generate model for the initial graph
-    _, model_initial = model_gen(initial_graph, params)
+    _, model_initial = model_gen(initial_graph, params, existing_filename=existing_filename)
 
     # Generate model for the modified graph
     _, model_mod = model_gen(mod_graph, params)
@@ -640,26 +648,26 @@ def compare_models(initial_graph, ext_subgraph, params=[64, 10, 80, 0.25, 4], te
     X_manual = X_initial + X_ext
     y_manual = y_initial + y_ext
 
-    print("New graph (from scratch)")
+    print("\n**New graph (from scratch)**")
     for test_size in test_sizes:
-        print(f"For training size: {(1 - test_size):.1f}: {list(ovr_classifier(X_mod, y_mod, test_size).values())}")
+        print(f"- For training size: {(1 - test_size):.1f}: {list(ovr_classifier(X_mod, y_mod, test_size).values())}")
 
     print(2 * '\n')
 
-    print("Manually updated graph (extending the graph)")
+    print("**Manually updated graph (extending the graph)**")
     for test_size in test_sizes:
-        print(f"For training size: {(1 - test_size):.1f}: {list(ovr_classifier(X_manual, y_manual, test_size).values())}")
+        print(f"- For training size: {(1 - test_size):.1f}: {list(ovr_classifier(X_manual, y_manual, test_size).values())}")
 
 
 def remove_nodes_connected(initial_graph, num_nodes):
     '''
-        Remove specific number of nodes while ensuring the graph remains connected.
-        Returns removed nodes and pruned graph.
+    Remove specific number of nodes while ensuring the graph remains connected.
+    Returns pruned graph and removed nodes-edges dictionary.
     '''
 
     graph = initial_graph.copy()
 
-    removed_nodes = []
+    removed_nodes_edges_dict = {}
 
     while num_nodes > 0:
         node = random.choice(list(graph.nodes()))
@@ -668,11 +676,14 @@ def remove_nodes_connected(initial_graph, num_nodes):
         temp_graph.remove_node(node)
 
         if nx.is_connected(temp_graph):
+            removed_edges = list(graph.edges(node))
+            removed_nodes_edges_dict[node] = removed_edges
             graph.remove_node(node)
-            removed_nodes.append(node)
             num_nodes -= 1
-        
-    return graph, removed_nodes
+
+    # removed_nodes = removed_nodes_edges_dict.keys()
+
+    return graph, removed_nodes_edges_dict # removed_nodes, removed_edges
 
 
 def removed_nodes_neighbors_func(initial_graph, removed_nodes, max_step=2):
@@ -702,15 +713,15 @@ def neighbors_subgraph_func(initial_graph, removed_nodes, neighbors):
     return neighbors_subgraph
 
 
-def pruned_graph_func(initial_graph, neighbors):
-    '''
-        Returns pruned subgraph of initial graph depending on 
-        the neighbors of the removed nodes
-    '''
+# def pruned_graph_func(initial_graph, neighbors):
+#     '''
+#         Returns pruned subgraph of initial graph depending on 
+#         the neighbors of the removed nodes
+#     '''
 
-    pruned_graph = initial_graph.subgraph(neighbors)
+#     pruned_graph = initial_graph.subgraph(neighbors)
 
-    return pruned_graph
+#     return pruned_graph
 
 
 def pruned_modified_embeddings(initial_graph, params, num_nodes=12):
@@ -733,14 +744,61 @@ def pruned_modified_embeddings(initial_graph, params, num_nodes=12):
     X_neighbors, y_neighbors, node_vectors_dict_neighbors = emb_group_gen(groups_dict, model_neighbors)
     X_pruned, y_pruned, node_vectors_dict_pruned = emb_group_gen(groups_dict, model_pruned)
 
-    node_vectors_dict_mod = node_vectors_dict_initial.copy()
+    node_vectors_dict_mod = node_vectors_dict_pruned.copy() # before it was dict_initial - still wrong, fix it (just remove the node keys from the removed nodes)
     node_vectors_dict_mod.update(node_vectors_dict_neighbors)
 
     X_mod = list(node_vectors_dict_mod.values())
-    y_mod = [groups_dict[key] for key in node_vectors_dict_mod if key in groups_dict]
+    y_mod = [groups_dict[key] for key in node_vectors_dict_mod] #if key in groups_dict]
 
     return X_pruned, y_pruned, X_mod, y_mod
 
+
+def advanced_info(G):
+    """
+    Displays advanced information about a graph.
+
+    Parameters:
+        G (NetworkX graph): The input graph.
+    """
+    print("Graph Information:")
+    print("Number of nodes:", G.number_of_nodes())
+    print("Number of edges:", G.number_of_edges())
+    print("Density:", nx.density(G))
+    print("Is connected:", nx.is_connected(G))
+    print("Average clustering coefficient:", nx.average_clustering(G))
+    print("Directed:", nx.is_directed(G))
+
+
+def dynamic_graph_gen(initial_graph, num_nodes_to_remove):
+    '''
+    Generates a list of dynamically updated graphs starting from a subgraph of the initial graph.
+    
+    Parameters:
+        initial_graph (NetworkX graph): The initial graph.
+        num_nodes_to_remove (int): The number of nodes to remove from the initial graph.
+
+    Returns:
+        graphs_list: A list of dynamically updated graphs.
+    '''
+
+    pruned_subgraph, removed_nodes_edges_dict = remove_nodes_connected(initial_graph, num_nodes_to_remove)
+    dynamic_graph = pruned_subgraph
+
+    removed_nodes = list(removed_nodes_edges_dict.keys())
+    new_nodes = removed_nodes
+
+    graphs_list = []
+
+    for node in new_nodes:
+        new_dynamic_graph = dynamic_graph.copy()
+        added_edges = removed_nodes_edges_dict[node]
+
+        new_dynamic_graph.add_edges_from(added_edges)
+
+        graphs_list.append(new_dynamic_graph)
+        dynamic_graph = new_dynamic_graph.copy()
+
+    return graphs_list
 
 
 # def nodes_remove_func(graph, percentage):
