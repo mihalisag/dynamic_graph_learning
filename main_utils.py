@@ -489,7 +489,7 @@ def remove_nodes_connected(initial_graph, num_nodes):
     removed_nodes_edges_dict = {}
 
     while num_nodes > 0 and len(graph.nodes) > 0:
-        node = random.choice(list(graph.nodes()), seed=42)
+        node = random.choice(list(graph.nodes()))
 
         # Determine the connected component containing the node
         components = list(nx.connected_components(graph))
