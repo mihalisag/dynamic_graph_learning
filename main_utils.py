@@ -268,14 +268,13 @@ def ovr_classifier(X, y, test_size):
 
     return f1_scores
 
-
 def node2vec_configs():
     '''
         Generates list of configs
     '''
-    D_values = [64, 128, 192, 256]
-    R_values = [10] 
-    L_values = [80]
+    D_values = [128]
+    R_values = [40, 80] 
+    L_values = [80, 160]
     P_values = [0.25, 0.5, 1, 2, 4]
     Q_values = [0.25, 0.5, 1, 2, 4] 
 
@@ -284,6 +283,23 @@ def node2vec_configs():
     parameter_combinations = list(itertools.product(*parameter_values))
 
     return parameter_combinations
+
+
+# def node2vec_configs():
+#     '''
+#         Generates list of configs
+#     '''
+#     D_values = [64, 128]
+#     R_values = [10, 20, 40, 80] 
+#     L_values = [80, 160, 240]
+#     P_values = [0.25, 0.5, 1, 2, 4]
+#     Q_values = [0.25, 0.5, 1, 2, 4] 
+
+#     # Generate all possible combinations of orders and seasonal orders
+#     parameter_values = [D_values, R_values, L_values, P_values, Q_values]
+#     parameter_combinations = list(itertools.product(*parameter_values))
+
+#     return parameter_combinations
 
 
 # Could extend by adjusting k 
@@ -616,14 +632,41 @@ def dynamic_graph_gen(initial_graph, num_nodes_to_remove, save_bool=False):
 
     graphs_list = graphs_list[::-1]
 
-    # if save_bool:
-    #     graphs_filenames_list = f'{initial_graph.name}_{num_nodes_to_remove}.pkl'
-
-    #     # Save the list of graphs to a file
-    #     with open(f'./graphs/{graphs_filenames_list}', 'wb') as f:
-    #         pickle.dump(graphs_list, f)
-
     return graphs_list
+
+
+
+# def dynamic_graph_gen(initial_graph: nx.Graph, num_nodes_to_remove: int, save_bool: bool = False):
+#     '''
+#     Generates a list of dynamically updated graphs starting from a subgraph of the initial graph.
+    
+#     Parameters:
+#         initial_graph (nx.Graph): The initial graph.
+#         num_nodes_to_remove (int): The number of nodes to remove from the initial graph.
+#         save_bool (bool): Whether to save the list of graphs to a file.
+
+#     Returns:
+#         List[nx.Graph]: A list of dynamically updated graphs.
+#     '''
+
+#     graphs_list = [initial_graph]
+#     dynamic_graph = initial_graph.copy()  # Use a copy to avoid modifying the original graph
+    
+#     print("Generating list of dynamic graphs:")
+#     for _ in tqdm(range(num_nodes_to_remove)):
+#         dynamic_graph, _ = remove_nodes_connected(dynamic_graph, 1)
+#         graphs_list.append(dynamic_graph.copy())  # Use a copy to avoid appending the same reference
+
+#     graphs_list.reverse()
+
+#     # if save_bool:
+#     #     graphs_filenames_list = f'{initial_graph.name}_{num_nodes_to_remove}.pkl'
+
+#     #     # Save the list of graphs to a file
+#     #     with open(f'./graphs/{graphs_filenames_list}', 'wb') as f:
+#     #         pickle.dump(graphs_list, f)
+
+#     return graphs_list
 
 
 def dynamic_extend_compare(initial_graph, added_nodes_num, params, groups_dict, graphs_list, quiet_bool=False):
@@ -645,23 +688,22 @@ def dynamic_extend_compare(initial_graph, added_nodes_num, params, groups_dict, 
     diff_nodes = nodes_j - nodes_i
     # diff_graph = nx.subgraph(graph_j, diff_nodes)
 
+    # -- This is what we already have from before, should not be timed
     # Initial training in initial graph
     node2vec_i = Node2Vec(graph_i, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=64, temp_folder='temp_folder', quiet=True)  # Use temp_folder for big graphs
     model_i = node2vec_i.fit() #, ns_exponent=1)
     X_i, y_i, node_vectors_dict_i = emb_group_gen(groups_dict, model_i)
+    # --
 
     # ** Start of global embeddings **
     start_global_time = time.time()
 
     node2vec_j = Node2Vec(graph_j, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=64, temp_folder='temp_folder', quiet=True)  # Use temp_folder for big graphs
-
     model_j = node2vec_j.fit() #, ns_exponent=1)
-
     X_j, y_j, node_vectors_dict_j = emb_group_gen(groups_dict, model_j)
     X_global, y_global = X_j, y_j
 
     end_global_time = time.time()
-
     total_global_time = end_global_time - start_global_time
     # ** End of global embeddings **
 
@@ -679,9 +721,7 @@ def dynamic_extend_compare(initial_graph, added_nodes_num, params, groups_dict, 
     traversed_nodes = list(map(int, traversed_nodes))
 
     node_vectors_dict_manual = node_vectors_dict_i.copy()
-
     temp_dict = {key: node_vectors_dict_temp[key] for key in traversed_nodes}
-
     node_vectors_dict_manual.update(temp_dict)
 
     X_local = list(node_vectors_dict_manual.values())
@@ -723,15 +763,12 @@ def dynamic_prune_compare(initial_graph, removed_nodes_num, params, groups_dict,
     nodes_upd = set(graph_upd.nodes())
 
     diff_nodes = nodes_upd - nodes_pruned
-    print(len(diff_nodes))
-
-    neighbors = removed_nodes_neighbors_func(graph_upd, diff_nodes, max_step=1)
+    # print(len(diff_nodes))
 
     # -- This is what we already have from before, should not be timed
     # Initial model and embeddings
     node2vec_initial = Node2Vec(initial_graph, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=64, temp_folder='temp_folder', quiet=True)  # Use temp_folder for big graphs
     model_initial = node2vec_initial.fit() #, ns_exponent=1)
-    
     X_initial, y_initial, node_vectors_dict_initial = emb_group_gen(groups_dict, model_initial)
     # --
 
@@ -741,7 +778,6 @@ def dynamic_prune_compare(initial_graph, removed_nodes_num, params, groups_dict,
     # node2vec_upd = Node2Vec(graph_upd, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=8, temp_folder='temp_folder', quiet=True)  # Use temp_folder for big graphs
     node2vec_upd = Node2Vec(graph_pruned, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=64, temp_folder='temp_folder', quiet=True)  # Use temp_folder for big graphs
     model_upd = node2vec_upd.fit() #, ns_exponent=1)
-        
     X_upd, y_upd, node_vectors_dict_upd = emb_group_gen(groups_dict, model_upd)
     X_global, y_global = X_upd, y_upd
 
@@ -749,9 +785,10 @@ def dynamic_prune_compare(initial_graph, removed_nodes_num, params, groups_dict,
     total_global_time = end_global_time - start_global_time
     # ** End of global embeddings **
 
-
     # ** Start of local embeddings **
     start_local_time = time.time()
+
+    neighbors = removed_nodes_neighbors_func(graph_upd, diff_nodes, max_step=1)
 
     # Pruned models
     node2vec_pruned = Node2Vec(graph_pruned, dimensions=d, walk_length=l//2, num_walks=r//2, p=p, q=q, workers=64, temp_folder='temp_folder',
