@@ -257,6 +257,7 @@ def test_grid_search(graph, X, y, test_sizes=np.arange(0.1, 1, 0.1)):
     fig.show()
 
 
+
 # def degree_plot(cumulative_deg_prob):
 #     '''
 #         Makes a plot of the degree distribution

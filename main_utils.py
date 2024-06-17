@@ -272,11 +272,18 @@ def node2vec_configs():
     '''
         Generates list of configs
     '''
+    # D_values = [128]
+    # R_values = [40, 80] 
+    # L_values = [80, 160]
+    # P_values = [0.25, 0.5, 1, 2, 4]
+    # Q_values = [0.25, 0.5, 1, 2, 4] 
+
+
     D_values = [128]
     R_values = [40, 80] 
-    L_values = [80, 160]
-    P_values = [0.25, 0.5, 1, 2, 4]
-    Q_values = [0.25, 0.5, 1, 2, 4] 
+    L_values = [80]
+    P_values = [0.25, 1, 2, 4]
+    Q_values = [1, 2, 4] 
 
     # Generate all possible combinations of orders and seasonal orders
     parameter_values = [D_values, R_values, L_values, P_values, Q_values]
