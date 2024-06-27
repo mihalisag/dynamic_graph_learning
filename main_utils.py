@@ -88,7 +88,7 @@ def model_gen(graph, params, existing_filename=None, quiet_bool=True):
 
     [d, r, l, p, q] = params
 
-    node2vec = Node2Vec(graph, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=8, temp_folder='temp_folder', quiet=quiet_bool)  # Use temp_folder for big graphs
+    node2vec = Node2Vec(graph, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=64, temp_folder='temp_folder', quiet=quiet_bool)  # Use temp_folder for big graphs
 
     # Embed nodes (check arguments, maybe unneccessary?)
     model = node2vec.fit(window=10, min_count=1, batch_words=4) #, ns_exponent=1)
@@ -267,6 +267,7 @@ def ovr_classifier(X, y, test_size):
     f1_scores[float(f"{training_size:.1f}")] = [f1_micro, f1_macro]
 
     return f1_scores
+
 
 def node2vec_configs():
     '''
@@ -473,30 +474,6 @@ def quick_scores_func(X_local, y_local, X_global, y_global, test_sizes):
     return {'local': {'micro': micro_f1_locals, 'macro': macro_f1_locals},
             'global': {'micro': micro_f1_globals, 'macro': macro_f1_globals}}
 
-
-# def remove_nodes_connected(initial_graph, num_nodes):
-#     '''
-#         Remove specific number of nodes while ensuring the graph remains connected.
-#         Returns pruned graph and removed nodes-edges dictionary.
-#     '''
-
-#     graph = initial_graph.copy()
-
-#     removed_nodes_edges_dict = {}
-
-#     while num_nodes > 0:
-#         node = random.choice(list(graph.nodes()))
-
-#         temp_graph = graph.copy()
-#         temp_graph.remove_node(node)
-
-#         if nx.is_connected(temp_graph):
-#             removed_edges = list(graph.edges(node))
-#             removed_nodes_edges_dict[node] = removed_edges
-#             graph.remove_node(node)
-#             num_nodes -= 1
-
-#     return graph, removed_nodes_edges_dict # removed_nodes, removed_edges
 
 
 def remove_nodes_connected(initial_graph, num_nodes):

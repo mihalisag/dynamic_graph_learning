@@ -55,8 +55,8 @@ def freq_plot(visit_counts, cumulative_freq_prob):
     '''
         Makes a plot of the frequency distribution
     '''
-    plt.style.use('default')
-    # plt.rcParams['text.usetex'] = True # TeX rendering
+    # plt.style.use('default')
+    plt.rcParams['text.usetex'] = True # TeX rendering
     plt.rcParams['font.size'] = 12
     plt.figure(figsize=(6, 5))
     
@@ -68,11 +68,11 @@ def freq_plot(visit_counts, cumulative_freq_prob):
     plt.yscale('log')
 
     # Create a scatter plot
-    plt.scatter(x=visit_counts, y=cumulative_freq_prob, s=4, zorder=2, color='royalblue')
+    plt.scatter(x=visit_counts, y=cumulative_freq_prob, s=4, zorder=2, color='#2053A6')
 
     # Set plot title and axis labels with larger font sizes
     plt.xlabel("Visits $x$", fontdict={'size': 16})
-    plt.ylabel("$P(V >= x)$", fontdict={'size': 16})
+    plt.ylabel("$Pr(V \geq x)$", fontdict={'size': 16})
 
     # # Increase tick label font size and tick line width
     # plt.tick_params(axis='both', which='major', labelsize=14, linewidth=1.2)
@@ -89,8 +89,8 @@ def degree_plot(cumulative_deg_prob):
     '''
         Makes a plot of the degree distribution
     '''
-
-    # plt.rcParams['text.usetex'] = True # TeX rendering
+    # plt.style.use('default')
+    plt.rcParams['text.usetex'] = True # TeX rendering
     plt.rcParams['font.size'] = 12
     plt.figure(figsize=(6, 5))
     
@@ -101,12 +101,12 @@ def degree_plot(cumulative_deg_prob):
     plt.yscale('log')
 
     # Create a scatter plot
-    plt.scatter(list(range(len(cumulative_deg_prob))), cumulative_deg_prob, s=4, zorder=2, color='royalblue')
+    plt.scatter(list(range(len(cumulative_deg_prob))), cumulative_deg_prob, s=4, zorder=2, color='#2053A6')
 
     # Set plot title and axis labels
     # plt.title("$\log$-$\log$ plot of degree distribution")
-    plt.xlabel("Degree", fontdict={'size': 16})
-    plt.ylabel("$P(deg(v)\geq x)$", fontdict={'size': 16})
+    plt.xlabel("$deg(v)$", fontdict={'size': 16})
+    plt.ylabel("$Pr(deg(v) \geq x)$", fontdict={'size': 16})
 
     # # Save and display the plot
     plt.tight_layout()
@@ -126,14 +126,14 @@ def degree_freq_plot(graph, degrees, node_freq_dict):
     # mpl.rcParams['font.family'] = 'Arial'
     # plt.rcParams['axes.linewidth'] = 2
 
-    # plt.rcParams['text.usetex'] = True # TeX rendering
+    plt.rcParams['text.usetex'] = True # TeX rendering
     plt.rcParams['font.size'] = 12 
     plt.figure(figsize=(6, 5))
 
     # Show dashed grid lines
     plt.grid(color='lightgrey')
     # Create a scatter plot
-    plt.scatter(sorted(degrees), sorted(node_freq_dict.values()), s=4, zorder=2, color='royalblue')
+    plt.scatter(sorted(degrees), sorted(node_freq_dict.values()), s=4, zorder=2, color='#2053A6')
 
     # Set plot title and axis labels
     # plt.title(r"Degree vs Frequency Plot for {} $|V|={}$, $|E|={}$".format(graph.name, graph.number_of_nodes(), graph.number_of_edges()))
@@ -145,7 +145,9 @@ def degree_freq_plot(graph, degrees, node_freq_dict):
     plt.savefig('figures/degree_freq_plot.svg', dpi=100, bbox_inches='tight')
     plt.savefig('figures/degree_freq_plot.pdf', dpi=100, bbox_inches='tight')
 
+    # Show the plots
     plt.show()
+
 
 
 def params_grid_search(graph, params_list):
@@ -153,13 +155,29 @@ def params_grid_search(graph, params_list):
         Performs grid search and outputs plots using Matplotlib
     '''
 
+    plt.rcParams['text.usetex'] = True # TeX rendering
+
+    # Define colors
+    colors = {
+        'BLUE': '#2053A6',
+        'ORANGE': '#FF6011',
+        'RED': '#FF1B20',
+        'GREEN': '#0CC03E',
+        'PURPLE': '#C801FF'
+    }
+    
+    # List of color values
+    color_values = list(colors.values())
+
     # Initialize figures
     fig1, ax1 = plt.subplots()
     fig2, ax2 = plt.subplots()
 
-    for params in tqdm(params_list):
-
+    for idx, params in enumerate(tqdm(params_list)):
         [d, r, l, p, q] = params
+
+        # Assign color based on the index
+        color = color_values[idx % len(color_values)]
 
         # Precompute probabilities and generate walks - **ON WINDOWS ONLY WORKS WITH workers=1**
         node2vec = Node2Vec(graph, dimensions=d, walk_length=l, num_walks=r, p=p, q=q, workers=8, quiet=True)  # Use temp_folder for big graphs
@@ -170,37 +188,31 @@ def params_grid_search(graph, params_list):
         node_freq_dict, visit_counts, cumulative_freq_prob = freq_gen(walks=walks)
 
         # Plotting the visit frequency distribution
-        ax1.scatter(visit_counts, cumulative_freq_prob, label=f'p={p}, q={q}', s=25, marker='x')
+        ax1.scatter(visit_counts, cumulative_freq_prob, label=f'p={p}, q={q}', s=25, marker='x', color=color)
         
         # Plotting the degree vs frequency
-        ax2.scatter(sorted(degrees), sorted(node_freq_dict.values()), label=f'p={p}, q={q}', s=25)
+        ax2.scatter(sorted(degrees), sorted(node_freq_dict.values()), label=f'p={p}, q={q}', s=25, color=color)
 
     # Configure the first plot (visit frequency distribution)
-    # ax1.set_title(f"Log-log plot of visit frequency distribution for {graph.name} |V|={graph.number_of_nodes()}, |E|={graph.number_of_edges()}")
     ax1.set_xlabel("Visits $x$", fontdict={'size': 16})
-    ax1.set_ylabel("$P(V >= x)$", fontdict={'size': 16})
+    ax1.set_ylabel("$Pr(V \geq x)$", fontdict={'size': 16})
     ax1.set_xscale('log')
     ax1.set_yscale('log')
     ax1.legend()
     ax1.grid(True, which='both', linestyle='--', linewidth=0.25)
 
     # Configure the second plot (degree vs frequency)
-    # ax2.set_title(f"Degree vs Frequency Plot for {graph.name} |V|={graph.number_of_nodes()}, |E|={graph.number_of_edges()}")
     ax2.set_xlabel("Degree", fontdict={'size': 16})
     ax2.set_ylabel("Visits", fontdict={'size': 16})
     ax2.legend()
     ax2.grid(True, which='both', linestyle='--', linewidth=0.25)
 
-    # Adjust figure sizes
-    fig1.set_size_inches(6, 5)
-    fig2.set_size_inches(6, 5)
+    # Optionally save the figures
+    fig1.savefig('figures/visit_frequency_distribution.pdf', dpi=100, bbox_inches='tight')
+    fig2.savefig('figures/degree_vs_frequency.pdf', dpi=100, bbox_inches='tight')
 
     # Show the plots
     plt.show()
-
-    # Optionally save the figures
-    fig1.savefig('figures/visit_frequency_distribution.pdf', dpi=150, bbox_inches='tight')
-    fig2.savefig('figures/degree_vs_frequency.pdf', dpi=150, bbox_inches='tight')
 
 
 
@@ -253,7 +265,7 @@ def test_grid_search(graph, X, y, test_sizes=np.arange(0.1, 1, 0.1)):
         height=480
     )
 
-
+    # Show the plots
     fig.show()
 
 
