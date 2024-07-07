@@ -280,11 +280,17 @@ def node2vec_configs():
     # Q_values = [0.25, 0.5, 1, 2, 4] 
 
 
+    # D_values = [128]
+    # R_values = [40, 80] 
+    # L_values = [80]
+    # P_values = [0.25, 1, 2, 4]
+    # Q_values = [1, 2, 4] 
+
     D_values = [128]
     R_values = [40, 80] 
     L_values = [80]
-    P_values = [0.25, 1, 2, 4]
-    Q_values = [1, 2, 4] 
+    P_values = [0.25]
+    Q_values = [1] 
 
     # Generate all possible combinations of orders and seasonal orders
     parameter_values = [D_values, R_values, L_values, P_values, Q_values]
@@ -333,30 +339,43 @@ def connect_subgraph(initial_graph, subgraph):
     return [node_main, node_sub], new_graph
 
 
-def get_neighborhood(initial_graph, initial_node, max_step):
-    '''
-    This function finds the neighborhood of a node in a
-    graph within a specified hop limit.
-    '''
-    
-    neighbors = set(initial_graph.neighbors(initial_node))
-    all_neighbors = set(initial_graph.neighbors(initial_node))
 
-    for step in range(max_step - 1):
-        temp = set()
+def get_neighborhood(initial_graph, initial_node, max_steps):
+    """
+    Finds the neighborhood of a node in a graph within a specified hop limit.
     
-        for node in neighbors:
-            temp.update(set(initial_graph.neighbors(node)))
+    Parameters:
+    initial_graph (Graph): The input graph.
+    initial_node (Node): The initial node.
+    max_steps (int): The maximum number of hops.
     
-        neighbors = temp - all_neighbors
-
-        all_neighbors.update(neighbors)
+    Returns:
+    Graph: The subgraph induced by the neighborhood.
+    """
+    # Initialize sets for current neighbors and all neighbors
+    current_neighbors = set(initial_graph.neighbors(initial_node))
+    all_neighbors = set(current_neighbors)
     
+    # Iterate for the given number of steps
+    for _ in range(max_steps - 1):
+        new_neighbors = set()
+        
+        # Collect neighbors of current neighbors
+        for neighbor in current_neighbors:
+            new_neighbors.update(initial_graph.neighbors(neighbor))
+        
+        # Update the sets for the next iteration
+        current_neighbors = new_neighbors - all_neighbors
+        all_neighbors.update(current_neighbors)
+    
+    # Remove the initial node from the neighborhood
     all_neighbors.discard(initial_node)
-
-    neighborhood = initial_graph.subgraph(all_neighbors) 
     
-    return neighborhood
+    # Create the subgraph for the neighborhood
+    neighborhood_subgraph = initial_graph.subgraph(all_neighbors)
+    
+    return neighborhood_subgraph
+
 
     
 

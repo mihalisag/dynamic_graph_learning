@@ -1,9 +1,21 @@
+# * This is a file containing the analysis helper functions used in the project *
+
+# -- Imports -- ## 
+
 import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
 
 import ast
+
+
+def extract_elements(param_str):
+    '''
+        Function to convert string to tuple and extract required elements
+    '''
+    tuple_obj = ast.literal_eval(param_str)
+    return tuple_obj[1], tuple_obj[2]
 
 
 def accu_time_df_gen(results_df, config):
