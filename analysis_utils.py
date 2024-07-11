@@ -65,6 +65,12 @@ def accu_time_plot(all_df):
         Plots accuracy-time scatter plot
     '''
 
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
+
     # Dataset name
     name = all_df.columns.name
 
@@ -76,10 +82,24 @@ def accu_time_plot(all_df):
         subset = all_df[all_df['retraining_type'] == retraining_type]
         plt.scatter(subset['training_time'], subset['average_accuracy'], c=color, label=retraining_type)
 
-    plt.xlabel('Training time', fontdict={'size': 16})
-    plt.ylabel('Accuracy', fontdict={'size': 16})
-    plt.title(f'Scatter Plot of Accuracy-Time for {name} dataset')
-    plt.legend(title='Retraining Type')
+    # Show dashed grid lines
+    plt.rc('axes', axisbelow=True)
+    plt.grid(color='lightgrey')
+    
+    plt.xlabel('Training time (s)', fontdict={'size': 20})
+    plt.ylabel('Accuracy', fontdict={'size': 20})
+
+    # plt.title(f'Scatter Plot of Accuracy-Time for {name} dataset')
+
+    # Adjust the legend
+    # plt.legend(loc='lower center', ncol=3, bbox_to_anchor=(0.5, -0.9))
+    
+    # Adjust spacing
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig(f'figures/accu_time_all_params_{name}_plot.pdf', dpi=100, bbox_inches='tight')
+
     plt.show()
 
 
@@ -104,17 +124,17 @@ def accu_speedup_dataset_plot(alL_stats_dict, dynamic_update):
     fig, ax = plt.subplots()
 
     # Plot the speedup
-    rects1 = ax.bar(x + width/2, speedup, width, label='Speedup (%)', color='#0CC03E')
+    rects1 = ax.bar(x + width/2, speedup, width, label='Speedup', color='#0CC03E')
 
     # Plot the accuracy difference
-    rects2 = ax.bar(x - width/2, accuracy_diff, width, label='Accuracy Difference (%)', color='#FF1B20')
+    rects2 = ax.bar(x - width/2, accuracy_diff, width, label='Accuracy Difference', color='#FF1B20')
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
-    # ax.set_xlabel('Dataset', fontdict={'size': 16})
-    # ax.set_ylabel('Percentage (%)', fontdict={'size': 16})
-    ax.set_title(f'Accuracy Difference and Speedup by Dataset for {dynamic_update}')
+    # ax.set_xlabel('Dataset', fontdict={'size': 20})
+    # ax.set_ylabel('Percentage (%)', fontdict={'size': 20})
+    # ax.set_title(f'Accuracy Difference and Speedup by Dataset for {dynamic_update}')
     ax.set_xticks(x)
-    ax.set_xticklabels(labels)
+    ax.set_xticklabels(labels, fontsize=16)
     # ax.set_ylim([0, 100])
     ax.set_ylim([0, 1])
     ax.legend()
@@ -126,6 +146,15 @@ def accu_speedup_dataset_plot(alL_stats_dict, dynamic_update):
     # Add grid
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax.set_axisbelow(True)
+
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
+
+    # Adjust the legend
+    plt.legend(loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.20))
 
     # Adjust spacing and save the plot
     plt.tight_layout()
@@ -188,8 +217,8 @@ def table_scores_plot(table_df, metric_name):
         min_value = min(min_value, np.min(y_values))
         max_value = max(max_value, np.max(y_values))
 
-    ax.set_xlabel('Training size', fontdict={'size': 16})
-    ax.set_ylabel(f'{metric_name} score', fontdict={'size': 16})
+    ax.set_xlabel('Training size', fontdict={'size': 20})
+    ax.set_ylabel(f'{metric_name} score', fontdict={'size': 20})
     ax.set_title(f'{dataset_name}')
     # ax.legend(title='Retraining Type')
     
@@ -214,6 +243,12 @@ def exp_table_scores_plot(dfs, dataset_names, metrics=['micro', 'macro']):
     dataset_names (list of str): List of dataset names corresponding to each DataFrame.
     metrics (list of str): List of metric names to use in the plot (default: ['micro', 'macro']).
     '''
+
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
 
     # X-axis values
     x_values = 1 - np.arange(0.1, 1, 0.1)
@@ -254,8 +289,8 @@ def exp_table_scores_plot(dfs, dataset_names, metrics=['micro', 'macro']):
                 max_value = max(max_value, np.max(y_values))
                 
 
-            ax.set_xlabel('Training size', fontdict={'size': 16})
-            ax.set_ylabel(f'{metric_name.capitalize()}-F1 score', fontdict={'size': 16})
+            ax.set_xlabel('Training size', fontdict={'size': 20})
+            ax.set_ylabel(f'{metric_name.capitalize()}-F1 score', fontdict={'size': 20})
             
             # Remove the current title
             ax.set_title('')
@@ -271,11 +306,59 @@ def exp_table_scores_plot(dfs, dataset_names, metrics=['micro', 'macro']):
             ax.grid(True, which='both', linestyle='--', linewidth=0.75, color='lightgrey')
             ax.set_axisbelow(True)
 
+    # # Adjust the legend
+    # plt.legend(loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.20))
 
     # Adjust spacing and save the plot
     # plt.tight_layout()
     plt.savefig('figures/datasets_scores.svg', dpi=100, bbox_inches='tight')
     plt.savefig('figures/datasets_scores.pdf', dpi=100, bbox_inches='tight')
-        
+    
     # Show the plot
+    plt.show()
+
+
+def dataset_walk_plot(dynamic_update, metric, all_dataset_walk_dict):
+    '''
+        Plots bar charts of accuracy and time (metric) for different
+        walk lengths for each dataset
+    '''
+
+    data = all_dataset_walk_dict
+
+    index = {'accuracy': 0, 'time': 1}[metric]
+    # suffix = {'accuracy': ' (\%)', 'time': ' (s)'}[metric]
+    suffix = {'accuracy': '', 'time': ' (s)'}[metric]
+
+    datasets = list(data.keys())
+    metric_40 = [data[ds].get(40.0, [0, 0])[index] for ds in datasets]
+    metric_80 = [data[ds].get(80.0, [0, 0])[index] for ds in datasets]
+
+    x = np.arange(len(datasets))
+    width = 0.35
+
+    # Accuracy bar chart
+    fig, ax = plt.subplots()
+    ax.bar(x - width/2, metric_40, width, label='Walk length = 40', color='#2053A6')
+    ax.bar(x + width/2, metric_80, width, label='Walk length = 80', color='#FF6011')
+    # ax.set_xlabel('Dataset')
+    # ax.set_ylabel('Accuracy')
+    # ax.set_title('Accuracy by Dataset and Metric')
+    ax.set_xticks(x)
+    ax.set_xticklabels(datasets, fontsize=16)
+    ax.set_ylabel(metric.title()+suffix, fontsize=16)
+
+    ax.legend()
+
+    # Add grid
+    ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+    ax.set_axisbelow(True)
+
+    # Adjust the legend
+    plt.legend(loc='lower center', ncol=3, bbox_to_anchor=(0.5, -0.20))
+
+    # Adjust spacing and save the plot
+    plt.tight_layout()
+    plt.savefig(f'figures/{metric}_walk_{dynamic_update}_plot.pdf', dpi=100, bbox_inches='tight')
+
     plt.show()

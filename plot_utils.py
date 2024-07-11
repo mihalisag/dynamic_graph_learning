@@ -55,8 +55,11 @@ def freq_plot(visit_counts, cumulative_freq_prob):
     '''
         Makes a plot of the frequency distribution
     '''
-    # plt.style.use('default')
-    plt.rcParams['text.usetex'] = True # TeX rendering
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
     plt.rcParams['font.size'] = 12
     plt.figure(figsize=(6, 5))
     
@@ -71,15 +74,14 @@ def freq_plot(visit_counts, cumulative_freq_prob):
     plt.scatter(x=visit_counts, y=cumulative_freq_prob, s=4, zorder=2, color='#2053A6')
 
     # Set plot title and axis labels with larger font sizes
-    plt.xlabel("Visits $x$", fontdict={'size': 16})
-    plt.ylabel("$Pr(V \geq x)$", fontdict={'size': 16})
+    plt.xlabel("Visits $x$", fontdict={'size': 20})
+    plt.ylabel("$Pr(V \geq x)$", fontdict={'size': 20})
 
     # # Increase tick label font size and tick line width
     # plt.tick_params(axis='both', which='major', labelsize=14, linewidth=1.2)
     
     # Adjust spacing and save the plot
     plt.tight_layout()
-    plt.savefig('figures/freq_plot.svg', dpi=100, bbox_inches='tight')
     plt.savefig('figures/freq_plot.pdf', dpi=100, bbox_inches='tight')
     
     plt.show()
@@ -89,9 +91,11 @@ def degree_plot(cumulative_deg_prob):
     '''
         Makes a plot of the degree distribution
     '''
-    # plt.style.use('default')
-    plt.rcParams['text.usetex'] = True # TeX rendering
-    plt.rcParams['font.size'] = 12
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
     plt.figure(figsize=(6, 5))
     
     # Show dashed grid lines
@@ -105,8 +109,8 @@ def degree_plot(cumulative_deg_prob):
 
     # Set plot title and axis labels
     # plt.title("$\log$-$\log$ plot of degree distribution")
-    plt.xlabel("$deg(v)$", fontdict={'size': 16})
-    plt.ylabel("$Pr(deg(v) \geq x)$", fontdict={'size': 16})
+    plt.xlabel("$deg(v)$", fontdict={'size': 20})
+    plt.ylabel("$Pr(\, deg(v) \geq x \,)$", fontdict={'size': 20})
 
     # # Save and display the plot
     plt.tight_layout()
@@ -122,11 +126,12 @@ def degree_freq_plot(graph, degrees, node_freq_dict):
         Makes a scatter plot of the degrees and the node frequencies
     '''
 
-    # Edit the font, font size, and axes width
-    # mpl.rcParams['font.family'] = 'Arial'
-    # plt.rcParams['axes.linewidth'] = 2
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
 
-    plt.rcParams['text.usetex'] = True # TeX rendering
     plt.rcParams['font.size'] = 12 
     plt.figure(figsize=(6, 5))
 
@@ -137,8 +142,8 @@ def degree_freq_plot(graph, degrees, node_freq_dict):
 
     # Set plot title and axis labels
     # plt.title(r"Degree vs Frequency Plot for {} $|V|={}$, $|E|={}$".format(graph.name, graph.number_of_nodes(), graph.number_of_edges()))
-    plt.xlabel("Degree", fontdict={'size': 16})
-    plt.ylabel("Visits", fontdict={'size': 16})
+    plt.xlabel("Degree", fontdict={'size': 20})
+    plt.ylabel("Visits", fontdict={'size': 20})
 
     # Save and display the plot
     plt.tight_layout()
@@ -155,7 +160,12 @@ def params_grid_search(graph, params_list):
         Performs grid search and outputs plots using Matplotlib
     '''
 
-    plt.rcParams['text.usetex'] = True # TeX rendering
+    # plt.rcParams['text.usetex'] = True # TeX rendering
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
 
     # Define colors
     colors = {
@@ -194,22 +204,25 @@ def params_grid_search(graph, params_list):
         ax2.scatter(sorted(degrees), sorted(node_freq_dict.values()), label=f'p={p}, q={q}', s=25, color=color)
 
     # Configure the first plot (visit frequency distribution)
-    ax1.set_xlabel("Visits $x$", fontdict={'size': 16})
-    ax1.set_ylabel("$Pr(V \geq x)$", fontdict={'size': 16})
+    ax1.set_xlabel("Visits $x$", fontdict={'size': 20})
+    ax1.set_ylabel("$Pr(V \geq x)$", fontdict={'size': 20})
     ax1.set_xscale('log')
     ax1.set_yscale('log')
     ax1.legend()
     ax1.grid(True, which='both', linestyle='--', linewidth=0.25)
 
     # Configure the second plot (degree vs frequency)
-    ax2.set_xlabel("Degree", fontdict={'size': 16})
-    ax2.set_ylabel("Visits", fontdict={'size': 16})
+    ax2.set_xlabel("Degree", fontdict={'size': 20})
+    ax2.set_ylabel("Visits", fontdict={'size': 20})
     ax2.legend()
     ax2.grid(True, which='both', linestyle='--', linewidth=0.25)
 
     # Optionally save the figures
     fig1.savefig('figures/visit_frequency_distribution.pdf', dpi=100, bbox_inches='tight')
     fig2.savefig('figures/degree_vs_frequency.pdf', dpi=100, bbox_inches='tight')
+
+    # Adjust the legend
+    plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, -0.20))
 
     # Show the plots
     plt.show()
