@@ -495,7 +495,7 @@ def quick_scores_func(X_local, y_local, X_global, y_global, test_sizes):
 
 
 
-def remove_nodes_connected(initial_graph, num_nodes):
+def remove_nodes_connected(initial_graph, num_nodes, removal_process='random'):
     '''
         Remove specific number of nodes while ensuring the graph remains connected.
         Returns pruned graph and removed nodes-edges dictionary.
@@ -506,10 +506,18 @@ def remove_nodes_connected(initial_graph, num_nodes):
 
     graph = initial_graph.copy()
     removed_nodes_edges_dict = {}
+    ignore_list = []
 
     while num_nodes > 0 and len(graph.nodes) > 0:
-        node = random.choice(list(graph.nodes()))
 
+        # Newly added part - can remove based on centrality as well
+        if removal_process == 'random':
+            node = random.choice(list(graph.nodes()))
+        elif removal_process == 'betweenness_centrality':
+            bet_centr_dict = nx.betweenness_centrality(graph)
+            bet_centr_dict = {key: value for key, value in bet_centr_dict.items() if key not in ignore_list}
+            node = max(bet_centr_dict, key=bet_centr_dict.get)
+            
         # Determine the connected component containing the node
         components = list(nx.connected_components(graph))
         component_with_node = None
@@ -531,6 +539,9 @@ def remove_nodes_connected(initial_graph, num_nodes):
                 removed_nodes_edges_dict[node] = removed_edges
                 graph.remove_node(node)
                 num_nodes -= 1
+            else:
+                if removal_process == 'betweenness_centrality':
+                    ignore_list.append(node)
 
     return graph, removed_nodes_edges_dict
 
@@ -613,7 +624,7 @@ def advanced_info(graph):
 
 
 # # Refactor this one
-def dynamic_graph_gen(initial_graph, num_nodes_to_remove, save_bool=False):
+def dynamic_graph_gen(initial_graph, num_nodes_to_remove, save_bool=False, removal_process='random'):
     '''
     Generates a list of dynamically updated graphs starting from a subgraph of the initial graph.
     
@@ -630,7 +641,7 @@ def dynamic_graph_gen(initial_graph, num_nodes_to_remove, save_bool=False):
     
     print("Generating list of dynamic graphs:")
     for i in tqdm(range(num_nodes_to_remove)):
-        dynamic_graph, _ = remove_nodes_connected(dynamic_graph, 1)
+        dynamic_graph, _ = remove_nodes_connected(dynamic_graph, 1, removal_process)
         graphs_list.append(dynamic_graph)
 
     graphs_list = graphs_list[::-1]
@@ -828,7 +839,7 @@ def dynamic_prune_compare(initial_graph, removed_nodes_num, params, groups_dict,
     return X_global, y_global, X_local, y_local, total_global_time, total_local_time, len(neighbors)
 
 
-def results_store_func(initial_graph, mod_type, local_vars, global_vars, test_sizes, mod_nodes_num, starting_nodes_num, params, training_times):
+def results_store_func(initial_graph, mod_type, local_vars, global_vars, test_sizes, mod_nodes_num, starting_nodes_num, params, training_times, removal_process='random'):
     '''
         Function to store the results
     '''
@@ -855,7 +866,7 @@ def results_store_func(initial_graph, mod_type, local_vars, global_vars, test_si
         for f1_type in f1_types_dict:
             f1_scores = f1_types_dict[f1_type]
 
-            results_row = [graph_name, num_nodes, num_edges, training_type, f1_type] + f1_scores + [params, training_time, mod_type, mod_nodes_num, starting_nodes_num, execution_timestamp]
+            results_row = [graph_name, num_nodes, num_edges, training_type, f1_type] + f1_scores + [params, training_time, mod_type, mod_nodes_num, starting_nodes_num, removal_process, execution_timestamp]
             results_df = pd.concat([pd.DataFrame([results_row], columns=results_df.columns), results_df], ignore_index=True)
 
     results_df.to_csv('results.csv', index=False)
@@ -863,7 +874,7 @@ def results_store_func(initial_graph, mod_type, local_vars, global_vars, test_si
     return results_df
 
 
-def results_output_func(initial_graph, mod_type, mod_nodes_num, params, groups_dict, graphs_list):
+def results_output_func(initial_graph, mod_type, mod_nodes_num, params, groups_dict, graphs_list, removal_process='random'):
     '''
         Function that shows the progress of the dynamic update and outputs results df
     '''
@@ -881,7 +892,7 @@ def results_output_func(initial_graph, mod_type, mod_nodes_num, params, groups_d
     global_vars = [X_global, y_global]
     training_times = total_global_time, total_local_time 
 
-    results_df = results_store_func(initial_graph, mod_type, local_vars, global_vars, test_sizes, mod_nodes_num, starting_nodes_num, params, training_times)
+    results_df = results_store_func(initial_graph, mod_type, local_vars, global_vars, test_sizes, mod_nodes_num, starting_nodes_num, params, training_times, removal_process)
 
     return results_df
 
