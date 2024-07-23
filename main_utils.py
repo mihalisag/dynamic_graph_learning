@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 import networkx as nx
+import nx_parallel as nxp
 import pickle
 
 from scipy.sparse import csr_matrix
@@ -514,10 +515,14 @@ def remove_nodes_connected(initial_graph, num_nodes, removal_process='random'):
         if removal_process == 'random':
             node = random.choice(list(graph.nodes()))
         elif removal_process == 'betweenness_centrality':
-            bet_centr_dict = nx.betweenness_centrality(graph)
+            bet_centr_dict = nxp.betweenness_centrality(graph, k=100)
             bet_centr_dict = {key: value for key, value in bet_centr_dict.items() if key not in ignore_list}
             node = max(bet_centr_dict, key=bet_centr_dict.get)
-            
+        elif removal_process == 'degree_centrality':
+            deg_centr_dict = nx.degree_centrality(graph)
+            deg_centr_dict = {key: value for key, value in deg_centr_dict.items() if key not in ignore_list}
+            node = max(deg_centr_dict, key=deg_centr_dict.get)
+
         # Determine the connected component containing the node
         components = list(nx.connected_components(graph))
         component_with_node = None
@@ -540,10 +545,11 @@ def remove_nodes_connected(initial_graph, num_nodes, removal_process='random'):
                 graph.remove_node(node)
                 num_nodes -= 1
             else:
-                if removal_process == 'betweenness_centrality':
+                if removal_process in ['betweenness_centrality', 'degree_centrality']:
                     ignore_list.append(node)
 
     return graph, removed_nodes_edges_dict
+
 
 
 def removed_nodes_neighbors_func(initial_graph, removed_nodes, max_step=2):
@@ -645,6 +651,13 @@ def dynamic_graph_gen(initial_graph, num_nodes_to_remove, save_bool=False, remov
         graphs_list.append(dynamic_graph)
 
     graphs_list = graphs_list[::-1]
+
+    if save_bool:
+        graphs_filenames_list = f'{initial_graph.name}_{removal_process}_{num_nodes_to_remove}.pkl'
+
+        # Save the list of graphs to a file
+        with open(f'./graphs/{graphs_filenames_list}', 'wb') as f:
+            pickle.dump(graphs_list, f)
 
     return graphs_list
 

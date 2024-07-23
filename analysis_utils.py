@@ -30,7 +30,7 @@ def accu_time_df_gen(results_df, config):
         
     sub_df = sub_df.reset_index(drop=True)
     perc_list = ['10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '90%']
-    sub_df = sub_df[['dataset', 'retraining_type', 'parameters', 'dynamic_update'] + perc_list + ['training_time']]
+    sub_df = sub_df[['dataset', 'retraining_type', 'parameters', 'dynamic_update'] + perc_list + ['training_time', 'removal_process']]
 
     # Calculate the average accuracy for each row
     accuracy_columns = perc_list
@@ -104,13 +104,13 @@ def accu_time_plot(all_df):
 
 
 
-def accu_speedup_dataset_plot(alL_stats_dict, dynamic_update):
+def accu_speedup_dataset_plot(all_stats_dict, dynamic_update):
 
     '''
         Plot accuracy-speedup bar charts for mutliple datasets
     '''
 
-    stats_dict = alL_stats_dict[dynamic_update]
+    stats_dict = all_stats_dict[dynamic_update]
 
     # Extract keys and values
     labels = list(stats_dict.keys())
@@ -137,11 +137,11 @@ def accu_speedup_dataset_plot(alL_stats_dict, dynamic_update):
     ax.set_xticklabels(labels, fontsize=16)
     # ax.set_ylim([0, 100])
     ax.set_ylim([0, 1])
-    ax.legend()
+    # ax.legend()
 
-    # Reverse the legend items
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles[::-1], labels[::-1])
+    # # Reverse the legend items
+    # handles, labels = ax.get_legend_handles_labels()
+    # ax.legend(handles[::-1], labels[::-1])
 
     # Add grid
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
@@ -154,7 +154,7 @@ def accu_speedup_dataset_plot(alL_stats_dict, dynamic_update):
     plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
 
     # Adjust the legend
-    plt.legend(loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.20))
+    # plt.legend(loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.20))
 
     # Adjust spacing and save the plot
     plt.tight_layout()
@@ -295,10 +295,10 @@ def exp_table_scores_plot(dfs, dataset_names, metrics=['micro', 'macro']):
             # Remove the current title
             ax.set_title('')
             
-            if j%2 == 0:
-                # Add horizontal title next to the y-axis
-                ax.text(-0.35, 0.5, f'{dataset_name.capitalize()}', transform=ax.transAxes,
-                        rotation=0, ha='center', va='center', fontsize='large', fontweight='bold')
+            # if j%2 == 0:
+            #     # Add horizontal title next to the y-axis
+            #     ax.text(-0.35, 0.5, f'{dataset_name.capitalize()}', transform=ax.transAxes,
+            #             rotation=0, ha='center', va='center', fontsize='large', fontweight='bold')
 
             ax.set_ylim([0.85 * min_value, 1.05 * max_value])
             
@@ -307,7 +307,7 @@ def exp_table_scores_plot(dfs, dataset_names, metrics=['micro', 'macro']):
             ax.set_axisbelow(True)
 
     # # Adjust the legend
-    # plt.legend(loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.20))
+    plt.legend(loc='lower center', ncol=2, bbox_to_anchor=(-0.25, -0.40))
 
     # Adjust spacing and save the plot
     # plt.tight_layout()
@@ -316,6 +316,45 @@ def exp_table_scores_plot(dfs, dataset_names, metrics=['micro', 'macro']):
     
     # Show the plot
     plt.show()
+
+
+def dataset_walk_scores_gen(results_df, dynamic_update):
+    '''
+        Generates macro scores for every dataset
+        for different walk lengths
+    '''
+
+    # all_datasets = list(results_df['dataset'].unique())
+    # dynamic_update = 'extend'   
+
+    all_datasets = ['blog_catalog', 'wikipedia', 'PPI', 'cora']
+    all_parameters = list(results_df['parameters'].unique())
+
+    config = {  'dynamic_update': dynamic_update,
+                'metric': 'macro',
+                'num_different_nodes': 512}
+
+    all_dataset_walk_dict = {}
+
+    for dataset in all_datasets:
+        config['dataset'] = dataset
+        
+        all_df = mult_params_accu_time_df_gen(results_df, config, all_parameters)
+
+        # Apply the function to the 'parameters' column and create new columns
+        all_df[['walk_length', 'walks_num']] = all_df['parameters'].apply(lambda x: pd.Series(extract_elements(x)))
+
+        all_df = all_df[['dataset', 'retraining_type', 'dynamic_update', 'walk_length', 'walks_num', 'average_accuracy', 'training_time']]
+        all_df = all_df.loc[all_df['walk_length'] != 8]
+
+        walk_df = all_df.groupby(['walk_length']).mean(['average_accuracy', 'training_time']).reset_index()
+
+        dataset_walk_metric_dict = {row['walk_length']: [row['average_accuracy'], row['training_time']] for _, row in walk_df.iterrows()}
+
+        all_dataset_walk_dict[dataset] = dataset_walk_metric_dict
+
+    
+    return all_dataset_walk_dict
 
 
 def dataset_walk_plot(dynamic_update, metric, all_dataset_walk_dict):
@@ -339,6 +378,7 @@ def dataset_walk_plot(dynamic_update, metric, all_dataset_walk_dict):
 
     # Accuracy bar chart
     fig, ax = plt.subplots()
+
     ax.bar(x - width/2, metric_40, width, label='Walk length = 40', color='#2053A6')
     ax.bar(x + width/2, metric_80, width, label='Walk length = 80', color='#FF6011')
     # ax.set_xlabel('Dataset')
@@ -348,17 +388,85 @@ def dataset_walk_plot(dynamic_update, metric, all_dataset_walk_dict):
     ax.set_xticklabels(datasets, fontsize=16)
     ax.set_ylabel(metric.title()+suffix, fontsize=16)
 
+    # ax.legend()
+
+    # Add grid
+    ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+    ax.set_axisbelow(True)
+
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
+
+    # Adjust the legend
+    # plt.legend(loc='lower center', ncol=3, bbox_to_anchor=(0.5, -0.20))
+
+    # Adjust spacing and save the plot
+    plt.tight_layout()
+    plt.savefig(f'figures/{metric}_walk_{dynamic_update}_plot.svg', dpi=100, bbox_inches='tight')
+    plt.savefig(f'figures/{metric}_walk_{dynamic_update}_plot.pdf', dpi=100, bbox_inches='tight')
+
+    plt.show()
+
+
+def dataset_removal_plot(sub_df):
+    '''
+        Plots the average accuracy for every dataset and for
+        different node removal processes
+    '''
+
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
+
+    # # Plotting parameters
+    # labels = sub_df['dataset'].unique()
+
+    # Define the order of datasets
+    labels = ['blog_catalog', 'wikipedia', 'PPI', 'cora']
+    removal_processes = sub_df['removal_process'].unique()
+    x = np.arange(len(labels))  # the label locations
+    width = 0.2  # the width of the bars
+
+    # Create the figure and the axes
+    fig, ax = plt.subplots() #figsize=(12, 8))
+
+    # Plot bars for each removal process
+    for i, removal_process in enumerate(removal_processes):
+        # Filter data for the current removal process
+        filtered_data = sub_df[sub_df['removal_process'] == removal_process]
+        accuracy_values = [filtered_data[filtered_data['dataset'] == label]['average_accuracy'].values[0] if label in filtered_data['dataset'].values else 0 for label in labels]
+        
+        # Plot the bars
+        rects = ax.bar(x + i * width - (len(removal_processes) / 2) * width, accuracy_values, width, label=removal_process)
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    # ax.set_xlabel('Dataset', fontdict={'size': 20})
+    # ax.set_ylabel('Average Accuracy', fontdict={'size': 20})
+    # ax.set_title('Average Accuracy by Dataset and Removal Process')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=16)
+    ax.set_ylim([0, 1])
     ax.legend()
+
+    # Reverse the legend items
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles[::-1], labels[::-1])
 
     # Add grid
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax.set_axisbelow(True)
 
     # Adjust the legend
-    plt.legend(loc='lower center', ncol=3, bbox_to_anchor=(0.5, -0.20))
+    plt.legend(loc='lower center', ncol=3, bbox_to_anchor=(0.5, -0.3))
 
     # Adjust spacing and save the plot
     plt.tight_layout()
-    plt.savefig(f'figures/{metric}_walk_{dynamic_update}_plot.pdf', dpi=100, bbox_inches='tight')
+    plt.savefig('figures/accuracy_by_dataset_removal_process.svg', dpi=100, bbox_inches='tight')
+    plt.savefig('figures/accuracy_by_dataset_removal_process.pdf', dpi=100, bbox_inches='tight')
 
+    # Show the plot
     plt.show()
