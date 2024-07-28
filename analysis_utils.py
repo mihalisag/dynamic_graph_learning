@@ -86,7 +86,7 @@ def accu_time_plot(all_df):
     plt.rc('axes', axisbelow=True)
     plt.grid(color='lightgrey')
     
-    plt.xlabel('Training time (s)', fontdict={'size': 20})
+    plt.xlabel('Time(s)', fontdict={'size': 20})
     plt.ylabel('Accuracy', fontdict={'size': 20})
 
     # plt.title(f'Scatter Plot of Accuracy-Time for {name} dataset')
@@ -99,9 +99,9 @@ def accu_time_plot(all_df):
 
     # Save the plot
     plt.savefig(f'figures/accu_time_all_params_{name}_plot.pdf', dpi=100, bbox_inches='tight')
+    plt.savefig(f'figures/accu_time_all_params_{name}_plot.svg', dpi=100, bbox_inches='tight')
 
     plt.show()
-
 
 
 def accu_speedup_dataset_plot(all_stats_dict, dynamic_update):
@@ -113,12 +113,18 @@ def accu_speedup_dataset_plot(all_stats_dict, dynamic_update):
     stats_dict = all_stats_dict[dynamic_update]
 
     # Extract keys and values
-    labels = list(stats_dict.keys())
+    labels = list(sorted(stats_dict.keys()))
     accuracy_diff = [v[0] for v in stats_dict.values()]
     speedup = [v[1] for v in stats_dict.values()]
 
     x = np.arange(len(labels))  # the label locations
     width = 0.35  # the width of the bars
+
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
 
     # Create the figure and the axes
     fig, ax = plt.subplots()
@@ -134,10 +140,12 @@ def accu_speedup_dataset_plot(all_stats_dict, dynamic_update):
     # ax.set_ylabel('Percentage (%)', fontdict={'size': 20})
     # ax.set_title(f'Accuracy Difference and Speedup by Dataset for {dynamic_update}')
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=16)
-    # ax.set_ylim([0, 100])
+    ax.set_xticklabels(labels, fontsize=20)
     ax.set_ylim([0, 1])
     # ax.legend()
+
+    # Set the fontsize for y-axis ticks
+    ax.tick_params(axis='y', labelsize=20)  # Increase fontsize for y-axis ticks
 
     # # Reverse the legend items
     # handles, labels = ax.get_legend_handles_labels()
@@ -146,12 +154,6 @@ def accu_speedup_dataset_plot(all_stats_dict, dynamic_update):
     # Add grid
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax.set_axisbelow(True)
-
-    # Set font to Computer Modern
-    plt.rcParams['font.family'] = 'serif'
-    plt.rcParams['font.serif'] = 'Computer Modern'
-    # plt.rcParams['font.weight'] = 'bold'
-    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
 
     # Adjust the legend
     # plt.legend(loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.20))
@@ -369,12 +371,19 @@ def dataset_walk_plot(dynamic_update, metric, all_dataset_walk_dict):
     # suffix = {'accuracy': ' (\%)', 'time': ' (s)'}[metric]
     suffix = {'accuracy': '', 'time': ' (s)'}[metric]
 
-    datasets = list(data.keys())
+    datasets = list(sorted(data.keys()))
     metric_40 = [data[ds].get(40.0, [0, 0])[index] for ds in datasets]
     metric_80 = [data[ds].get(80.0, [0, 0])[index] for ds in datasets]
 
-    x = np.arange(len(datasets))
     width = 0.35
+    spacing = 0.3  # additional spacing between bars (adjust this value as needed)
+    x = np.arange(0, len(datasets) * (1 + spacing), 1 + spacing) # Adjust x to include spacing
+
+    # Set font to Computer Modern
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = 'Computer Modern'
+    # plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
 
     # Accuracy bar chart
     fig, ax = plt.subplots()
@@ -385,8 +394,9 @@ def dataset_walk_plot(dynamic_update, metric, all_dataset_walk_dict):
     # ax.set_ylabel('Accuracy')
     # ax.set_title('Accuracy by Dataset and Metric')
     ax.set_xticks(x)
-    ax.set_xticklabels(datasets, fontsize=16)
-    ax.set_ylabel(metric.title()+suffix, fontsize=16)
+    ax.set_xticklabels(datasets, fontsize=20)
+    ax.set_ylabel(metric.title()+suffix, fontsize=22)
+    # ax.set_ylim([0, 1])
 
     # ax.legend()
 
@@ -394,11 +404,8 @@ def dataset_walk_plot(dynamic_update, metric, all_dataset_walk_dict):
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
     ax.set_axisbelow(True)
 
-    # Set font to Computer Modern
-    plt.rcParams['font.family'] = 'serif'
-    plt.rcParams['font.serif'] = 'Computer Modern'
-    # plt.rcParams['font.weight'] = 'bold'
-    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
+    # Set the fontsize for y-axis ticks
+    ax.tick_params(axis='y', labelsize=20)  # Increase fontsize for y-axis ticks
 
     # Adjust the legend
     # plt.legend(loc='lower center', ncol=3, bbox_to_anchor=(0.5, -0.20))
@@ -422,11 +429,16 @@ def dataset_removal_plot(sub_df):
     plt.rcParams['font.serif'] = 'Computer Modern'
     plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
 
-    # # Plotting parameters
-    # labels = sub_df['dataset'].unique()
+    # Define colors
+    process_colors = {
+        'degree_centrality': '#2053A6',
+        'betweenness_centrality': '#FF6011',
+        'random': '#0CC03E'
+    }
+    
 
     # Define the order of datasets
-    labels = ['blog_catalog', 'wikipedia', 'PPI', 'cora']
+    labels = ['PPI', 'blog_catalog', 'cora', 'wikipedia']
     removal_processes = sub_df['removal_process'].unique()
     x = np.arange(len(labels))  # the label locations
     width = 0.2  # the width of the bars
@@ -440,8 +452,11 @@ def dataset_removal_plot(sub_df):
         filtered_data = sub_df[sub_df['removal_process'] == removal_process]
         accuracy_values = [filtered_data[filtered_data['dataset'] == label]['average_accuracy'].values[0] if label in filtered_data['dataset'].values else 0 for label in labels]
         
+        # Bar color
+        bar_color = process_colors[removal_process]
+
         # Plot the bars
-        rects = ax.bar(x + i * width - (len(removal_processes) / 2) * width, accuracy_values, width, label=removal_process)
+        rects = ax.bar(x + i * width - (len(removal_processes) / 2) * width, accuracy_values, width, label=removal_process, color=bar_color)
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     # ax.set_xlabel('Dataset', fontdict={'size': 20})
@@ -461,7 +476,7 @@ def dataset_removal_plot(sub_df):
     ax.set_axisbelow(True)
 
     # Adjust the legend
-    plt.legend(loc='lower center', ncol=3, bbox_to_anchor=(0.5, -0.3))
+    plt.legend(loc='lower center', ncol=3, bbox_to_anchor=(0.5, -0.3), fontsize=12)
 
     # Adjust spacing and save the plot
     plt.tight_layout()

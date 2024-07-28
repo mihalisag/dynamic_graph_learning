@@ -485,15 +485,13 @@ def quick_scores_func(X_local, y_local, X_global, y_global, test_sizes):
         Summarized f1 scores in a dictionary
     '''
     
-    micro_f1_globals = [list(ovr_classifier(X_global, y_global, test_size).values())[0][0] for test_size in test_sizes]
-    micro_f1_locals = [list(ovr_classifier(X_local, y_local, test_size).values())[0][0] for test_size in test_sizes]
-    macro_f1_globals = [list(ovr_classifier(X_global, y_global, test_size).values())[0][1] for test_size in test_sizes]
-    macro_f1_locals = [list(ovr_classifier(X_local, y_local, test_size).values())[0][1] for test_size in test_sizes]
-
+    micro_f1_globals = [list(ovr_classifier(X_global, y_global, test_size).values())[0][0] for test_size in test_sizes][::-1]
+    micro_f1_locals = [list(ovr_classifier(X_local, y_local, test_size).values())[0][0] for test_size in test_sizes][::-1]
+    macro_f1_globals = [list(ovr_classifier(X_global, y_global, test_size).values())[0][1] for test_size in test_sizes][::-1]
+    macro_f1_locals = [list(ovr_classifier(X_local, y_local, test_size).values())[0][1] for test_size in test_sizes][::-1]
 
     return {'local': {'micro': micro_f1_locals, 'macro': macro_f1_locals},
             'global': {'micro': micro_f1_globals, 'macro': macro_f1_globals}}
-
 
 
 def remove_nodes_connected(initial_graph, num_nodes, removal_process='random'):
