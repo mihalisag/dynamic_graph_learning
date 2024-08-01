@@ -281,11 +281,11 @@ def exp_table_scores_plot(dfs, dataset_names, metrics=['micro', 'macro']):
                 y_plot = y_values.flatten()
 
                 # Scatter plot
-                ax.scatter(x_plot, y_plot, c=colors[retraining_type], marker=markers[retraining_type], label=retraining_type)
+                ax.scatter(x_plot, y_plot[::-1], c=colors[retraining_type], marker=markers[retraining_type], label=retraining_type)
                 
                 # Line plot
                 for k in range(y_values.shape[0]):
-                    ax.plot(x_values, y_values[k], c=colors[retraining_type], linestyle='-', linewidth=0.5)
+                    ax.plot(x_values, y_values[k][::-1], c=colors[retraining_type], linestyle='-', linewidth=0.5)
 
                 min_value = min(min_value, np.min(y_values))
                 max_value = max(max_value, np.max(y_values))
