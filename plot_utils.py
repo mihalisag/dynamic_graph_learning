@@ -56,11 +56,8 @@ def freq_plot(visit_counts, cumulative_freq_prob):
     '''
         Makes a plot of the frequency distribution
     '''
-    # Set font to Computer Modern
-    plt.rcParams['font.family'] = 'serif'
-    plt.rcParams['font.serif'] = 'Computer Modern'
-    # plt.rcParams['font.weight'] = 'bold'
-    plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
+    # plt.style.use('default')
+    plt.rcParams['text.usetex'] = True # TeX rendering
     plt.rcParams['font.size'] = 12
     plt.figure(figsize=(6, 5))
     
@@ -75,11 +72,15 @@ def freq_plot(visit_counts, cumulative_freq_prob):
     plt.scatter(x=visit_counts, y=cumulative_freq_prob, s=4, zorder=2, color='#2053A6')
 
     # Set plot title and axis labels with larger font sizes
-    plt.xlabel("Visits $x$", fontdict={'size': 20})
-    plt.ylabel("$Pr(V \geq x)$", fontdict={'size': 20})
+    plt.xlabel("Visits $x$", fontdict={'size': 16})
+    plt.ylabel("$Pr(V \geq x)$", fontdict={'size': 16})
 
     # # Increase tick label font size and tick line width
     # plt.tick_params(axis='both', which='major', labelsize=14, linewidth=1.2)
+
+    # Increase tick size
+    plt.rcParams['xtick.labelsize'] = 14  # Adjust the tick size as needed
+    plt.rcParams['ytick.labelsize'] = 14  # Adjust the tick size as needed
     
     # Adjust spacing and save the plot
     plt.tight_layout()
@@ -110,8 +111,12 @@ def degree_plot(cumulative_deg_prob):
 
     # Set plot title and axis labels
     # plt.title("$\log$-$\log$ plot of degree distribution")
-    plt.xlabel("$deg(v)$", fontdict={'size': 20})
+    plt.xlabel("Degree $x$", fontdict={'size': 20})
     plt.ylabel("$Pr(\, deg(v) \geq x \,)$", fontdict={'size': 20})
+
+    # Increase tick size
+    plt.rcParams['xtick.labelsize'] = 14  # Adjust the tick size as needed
+    plt.rcParams['ytick.labelsize'] = 14  # Adjust the tick size as needed
 
     # # Save and display the plot
     plt.tight_layout()
@@ -119,6 +124,7 @@ def degree_plot(cumulative_deg_prob):
     plt.savefig('figures/degree_plot.pdf', dpi=100, bbox_inches='tight')
 
     plt.show()
+
 
 
 
@@ -146,6 +152,10 @@ def degree_freq_plot(graph, degrees, node_freq_dict):
     plt.xlabel("Degree", fontdict={'size': 20})
     plt.ylabel("Visits", fontdict={'size': 20})
 
+    # Increase tick size
+    plt.rcParams['xtick.labelsize'] = 14  # Adjust the tick size as needed
+    plt.rcParams['ytick.labelsize'] = 14  # Adjust the tick size as needed
+    
     # Save and display the plot
     plt.tight_layout()
     plt.savefig('figures/degree_freq_plot.svg', dpi=100, bbox_inches='tight')
@@ -167,6 +177,10 @@ def params_grid_search(graph, params_list):
     plt.rcParams['font.serif'] = 'Computer Modern'
     # plt.rcParams['font.weight'] = 'bold'
     plt.rcParams['text.usetex'] = True  # Use LaTeX for rendering text
+
+    # Increase tick size
+    plt.rcParams['xtick.labelsize'] = 14  # Adjust the tick size as needed
+    plt.rcParams['ytick.labelsize'] = 14  # Adjust the tick size as needed
 
     # Define colors
     colors = {
@@ -203,7 +217,10 @@ def params_grid_search(graph, params_list):
         
         # Plotting the degree vs frequency
         ax2.scatter(sorted(degrees), sorted(node_freq_dict.values()), label=f'p={p}, q={q}', s=25, color=color)
-
+    
+    # Adjust the legend
+    plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, -0.30), fontsize=12)
+    
     # Configure the first plot (visit frequency distribution)
     ax1.set_xlabel("Visits $x$", fontdict={'size': 20})
     ax1.set_ylabel("$Pr(V \geq x)$", fontdict={'size': 20})
@@ -219,11 +236,14 @@ def params_grid_search(graph, params_list):
     ax2.grid(True, which='both', linestyle='--', linewidth=0.25)
 
     # Optionally save the figures
+    fig1.savefig('figures/visit_frequency_distribution.svg', dpi=100, bbox_inches='tight')
     fig1.savefig('figures/visit_frequency_distribution.pdf', dpi=100, bbox_inches='tight')
+
+    fig2.savefig('figures/degree_vs_frequency.svg', dpi=100, bbox_inches='tight')
     fig2.savefig('figures/degree_vs_frequency.pdf', dpi=100, bbox_inches='tight')
 
     # Adjust the legend
-    plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, -0.20))
+    plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, -0.30), fontsize=12)
 
     # Show the plots
     plt.show()
